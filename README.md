@@ -1,47 +1,27 @@
 # EducaMente AI
 
-**Inteligência artificial a serviço da educação inclusiva e personalizada.**
+Aplicação web da EducaMente AI, com interface HTML/CSS/JavaScript e integração de dados com Supabase.
 
-## Sobre o projeto
+## Abrir a versão integrada
 
-A EducaMente AI é uma plataforma de inteligência pedagógica baseada em agentes de IA, desenvolvida para auxiliar professores no acompanhamento da aprendizagem e na criação de atividades personalizadas.
+1. Mantenha o arquivo local `supabase-config.js` na raiz, com a URL do seu projeto e a chave pública `anon`/`publishable` (nunca use `service_role` ou `sb_secret`).
+2. Abra a pasta pelo VS Code e inicie o Live Server em `index.html`.
+3. A aplicação usa a sessão Supabase já criada no importador para carregar os registros da nuvem.
+4. Confira no cabeçalho o estado **Conectado à nuvem**. Em **Configurações**, também é possível ver a conta e o armazenamento ativo.
+5. Cadastros, edições e exclusões dos módulos principais são sincronizados com o Supabase. O navegador mantém `localStorage` como cache de apoio.
 
-A proposta é reduzir o tempo gasto com tarefas pedagógicas repetitivas e apoiar o professor na identificação de dificuldades e necessidades de aprendizagem dos estudantes.
+## Importador incluído
 
-## Problema
+`importar-dados.html` e `importar-dados.js` são mantidos para a migração inicial dos registros locais. Abra pelo mesmo Live Server e na mesma origem de `index.html`.
 
-Professores lidam com turmas heterogêneas, nas quais cada estudante possui seu próprio ritmo e suas necessidades de aprendizagem. Registrar o progresso, analisar resultados e preparar atividades adaptadas exige tempo e esforço.
+## Estrutura Supabase
 
-## Solução
+A migration inicial está em `supabase/migrations/202611110001_initial_schema.sql`. A migration seguinte adiciona a coluna de observações em alunos: `202611110002_students_observation.sql`.
 
-A plataforma pretende permitir que o professor registre aulas, conteúdos e resultados dos estudantes. Um agente de IA poderá analisar essas informações e sugerir atividades personalizadas, estratégias de reforço e adaptações pedagógicas.
+## Limites desta etapa
 
-As recomendações serão revisadas e aprovadas pelo professor antes de serem utilizadas.
-
-## Funcionalidades planejadas
-
-- Registro de turmas, aulas e conteúdos.
-- Registro e acompanhamento da aprendizagem.
-- Análise de resultados com auxílio de IA.
-- Geração de atividades personalizadas.
-- Sugestões de adaptações pedagógicas e acessibilidade.
-
-## Tecnologias previstas
-
-- **Frontend:** React
-- **Backend:** Python e FastAPI
-- **Banco de dados:** PostgreSQL / Supabase
-- **Inteligência artificial:** modelo de linguagem com ferramentas (function calling)
-- **Recuperação de informações:** RAG
-
-## Objetivo do MVP
-
-Desenvolver um protótipo funcional que demonstre o registro de informações pedagógicas, a análise de resultados e a geração de atividades personalizadas por um agente de IA.
-
-## Status
-
-Projeto em desenvolvimento para o AKCIT Camp 2026.
-
-## Responsabilidade e inclusão
-
-A EducaMente AI pretende apoiar o trabalho docente, sem substituir a avaliação profissional do professor. O projeto considera privacidade, segurança de dados e acessibilidade como princípios fundamentais.
+- A sincronização Supabase cobre turmas, alunos, avaliações, resultados, atividades e planejamentos.
+- O campo opcional `avaliacaoId` do planejamento não é armazenado porque a tabela `lesson_plans` atual não possui uma coluna correspondente.
+- Os agentes de IA ainda não estão conectados.
+- Antes de uso com dados reais de crianças, revise consentimento, minimização de dados, políticas de privacidade e segurança.
+- Teste primeiro com registros fictícios. Não envie dados de alunos para canais públicos.

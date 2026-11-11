@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EducaMente AI</title>
+<link rel="stylesheet" href="styles.css"></head>
+<body>
+<header><button class="ib0" id="burger" data-act="menu" title="Menu">☰</button><div class="logo">Educa<b>Mente</b> <i>AI</i></div><div class="sp"></div>
+<button class="ib0" data-act="notif" title="Notificações" style="width:auto;padding:0 10px">🔔<sup id="nb"></sup></button><div class="esc" id="escola"></div><div id="cloudState" style="font-size:11px;color:var(--mt);max-width:190px;text-align:right">Conectando ao Supabase…</div><button class="av" data-act="go:configuracoes"><span id="avatarInitial">P</span><div class="esc" id="profileName" style="display:block;color:var(--tx)">Professor</div></button></header>
+<div class="layout"><aside id="nav"></aside><main id="main"></main></div>
+<div id="modal"></div><div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-client.js"></script>
+<script src="supabase-sync.js"></script>
+<script src="app.js"></script></body></html>

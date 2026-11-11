@@ -1,31 +1,24 @@
-# Backend — EducaMente AI
+# Backend / Supabase
 
-## Objetivo
+## Situação atual
 
-O backend será responsável por conectar a interface da EducaMente AI ao banco de dados e aos serviços de inteligência artificial.
+O ZIP original contém uma aplicação estática em HTML, CSS e JavaScript. Não há servidor Node/Next.js/FastAPI nem `package.json`. Para preservar a interface, esta etapa prepara o banco e o cliente Supabase sem converter a aplicação.
 
-## Responsabilidades
+## Conteúdo
 
-- Receber informações enviadas pelo frontend.
-- Gerenciar turmas e registros pedagógicos.
-- Consultar e armazenar dados no banco de dados.
-- Enviar solicitações ao agente de IA.
-- Retornar análises e atividades geradas.
-- Validar informações antes de salvar ou enviar respostas.
+- `../supabase/migrations/`: criação das tabelas, índices, constraints e políticas RLS.
+- `../supabase-config.example.js`: exemplo de configuração do cliente browser.
+- `../supabase-client.js`: inicialização opcional do SDK.
+- `.env.example`: nomes das variáveis para futura execução em servidor.
 
-## Tecnologias previstas
+## Próximos passos para conexão real
 
-- Python
-- FastAPI
-- Supabase / PostgreSQL
+1. Criar um projeto Supabase.
+2. Executar a migration SQL.
+3. Copiar `supabase-config.example.js` para `supabase-config.js`.
+4. Preencher `url` e `anonKey` com os valores do painel Supabase.
+5. Não inserir `SUPABASE_SERVICE_ROLE_KEY` no frontend.
+6. Implementar e testar login/perfil do professor.
+7. Migrar cada CRUD do `app.js` para serviços assíncronos Supabase, mantendo localStorage como fallback até validar persistência.
 
-## Estrutura planejada
-
-- `main.py`: inicialização da API.
-- `routes/`: rotas e endpoints.
-- `services/`: regras de negócio e integrações.
-- `schemas/`: estruturas e validação de dados.
-
-## Status
-
-Em planejamento e desenvolvimento.
+**Atenção:** a aplicação ainda não faz CRUD no Supabase. O armazenamento atual continua sendo `localStorage`; o cliente é apenas preparado nesta entrega.
