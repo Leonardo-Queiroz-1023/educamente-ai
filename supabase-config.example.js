@@ -3,5 +3,7 @@
 // A anon/publishable key é pública por definição: proteja os dados com RLS.
 window.EDUCAMENTE_SUPABASE_CONFIG = {
   url: "",
-  anonKey: ""
+  anonKey: "",
+  // Endereço do serviço do agente de IA (pasta agent/). Padrão: http://localhost:3000
+  agentUrl: "http://localhost:3000"
 };

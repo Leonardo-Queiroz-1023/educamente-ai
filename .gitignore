@@ -5,3 +5,9 @@ supabase-config.js
 .env
 .env.*
 !.env.example
+
+# Serviço do agente de IA (agent/)
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts

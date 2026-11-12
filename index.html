@@ -1,15 +1,102 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8">
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>EducaMente AI</title>
-<link rel="stylesheet" href="styles.css"></head>
-<body>
-<header><button class="ib0" id="burger" data-act="menu" title="Menu">☰</button><div class="logo">Educa<b>Mente</b> <i>AI</i></div><div class="sp"></div>
-<button class="ib0" data-act="notif" title="Notificações" style="width:auto;padding:0 10px">🔔<sup id="nb"></sup></button><div class="esc" id="escola"></div><div id="cloudState" style="font-size:11px;color:var(--mt);max-width:190px;text-align:right">Conectando ao Supabase…</div><button class="av" data-act="go:configuracoes"><span id="avatarInitial">P</span><div class="esc" id="profileName" style="display:block;color:var(--tx)">Professor</div></button></header>
-<div class="layout"><aside id="nav"></aside><main id="main"></main></div>
-<div id="modal"></div><div id="toast"></div>
+<title>Entrar — EducaMente AI</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="auth.css">
+</head>
+<body class="auth-page">
+<div class="auth">
+  <main class="auth-main">
+    <div class="auth-box">
+      <h1 class="logo auth-logo">Educa<b>Mente</b> <i>AI</i></h1>
+      <div class="auth-tabs" role="tablist" aria-label="Acesso">
+        <button type="button" role="tab" id="tabLogin" aria-controls="panelLogin" aria-selected="true" data-tab="login">Entrar</button>
+        <button type="button" role="tab" id="tabSignup" aria-controls="panelSignup" aria-selected="false" data-tab="signup">Criar conta</button>
+      </div>
+
+      <p id="authStatus" role="status" aria-live="polite" hidden></p>
+
+      <form id="panelLogin" data-panel="login" role="tabpanel" aria-labelledby="tabLogin">
+        <h2>Entrar na sua conta</h2>
+        <p class="lead">Use o e-mail e a senha cadastrados.</p>
+        <div class="field"><label for="loginEmail">E-mail</label><input id="loginEmail" type="email" autocomplete="username" required></div>
+        <div class="field">
+          <div class="field-head"><label for="loginPassword">Senha</label><button type="button" class="link" data-go="recover">Esqueci a senha</button></div>
+          <div class="pw"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pw-toggle" data-toggle="loginPassword" aria-pressed="false">Mostrar</button></div>
+        </div>
+        <button class="btn block" type="submit" data-busy="Entrando…">Entrar</button>
+      </form>
+
+      <form id="panelSignup" data-panel="signup" role="tabpanel" aria-labelledby="tabSignup" hidden>
+        <h2>Criar conta de professor</h2>
+        <p class="lead">Sua escola é criada junto com a conta.</p>
+        <div class="field"><label for="suName">Seu nome</label><input id="suName" autocomplete="name" required maxlength="120"></div>
+        <div class="field-row">
+          <div class="field"><label for="suSchool">Escola</label><input id="suSchool" autocomplete="organization" required maxlength="160"></div>
+          <div class="field"><label for="suCity">Município <span class="opt">(opcional)</span></label><input id="suCity" autocomplete="address-level2" maxlength="120"></div>
+        </div>
+        <div class="field"><label for="suEmail">E-mail</label><input id="suEmail" type="email" autocomplete="email" required></div>
+        <div class="field">
+          <label for="suPassword">Senha</label>
+          <div class="pw"><input id="suPassword" type="password" autocomplete="new-password" minlength="8" required aria-describedby="suPasswordHint"><button type="button" class="pw-toggle" data-toggle="suPassword" aria-pressed="false">Mostrar</button></div>
+          <span class="hint" id="suPasswordHint">Pelo menos 8 caracteres.</span>
+        </div>
+        <button class="btn block" type="submit" data-busy="Criando conta…">Criar conta</button>
+      </form>
+
+      <form data-panel="recover" hidden>
+        <h2>Recuperar a senha</h2>
+        <p class="lead">Enviaremos um link para você criar uma nova senha.</p>
+        <div class="field"><label for="recEmail">E-mail</label><input id="recEmail" type="email" autocomplete="email" required></div>
+        <button class="btn block" type="submit" data-busy="Enviando…">Enviar link</button>
+        <p class="back"><button type="button" class="link" data-go="login">Voltar para entrar</button></p>
+      </form>
+
+      <form data-panel="newpass" hidden>
+        <h2>Criar nova senha</h2>
+        <p class="lead">Escolha a senha que você vai usar a partir de agora.</p>
+        <div class="field">
+          <label for="npPassword">Nova senha</label>
+          <div class="pw"><input id="npPassword" type="password" autocomplete="new-password" minlength="8" required aria-describedby="npPasswordHint"><button type="button" class="pw-toggle" data-toggle="npPassword" aria-pressed="false">Mostrar</button></div>
+          <span class="hint" id="npPasswordHint">Pelo menos 8 caracteres.</span>
+        </div>
+        <button class="btn block" type="submit" data-busy="Salvando…">Salvar senha e entrar</button>
+      </form>
+
+      <form data-panel="profile" hidden>
+        <h2>Concluir cadastro</h2>
+        <p class="lead">Falta só informar seu nome e sua escola.</p>
+        <div class="field"><label for="pfName">Seu nome</label><input id="pfName" autocomplete="name" required maxlength="120"></div>
+        <div class="field-row">
+          <div class="field"><label for="pfSchool">Escola</label><input id="pfSchool" autocomplete="organization" required maxlength="160"></div>
+          <div class="field"><label for="pfCity">Município <span class="opt">(opcional)</span></label><input id="pfCity" autocomplete="address-level2" maxlength="120"></div>
+        </div>
+        <button class="btn block" type="submit" data-busy="Salvando…">Concluir e entrar</button>
+        <p class="back"><button type="button" class="link" data-signout>Entrar com outra conta</button></p>
+      </form>
+
+      <section data-panel="merge" hidden aria-labelledby="mergeTitle">
+        <h2 id="mergeTitle">Registros deste navegador</h2>
+        <p class="lead">Você tem <b id="mergeCount">0</b> registro(s) criados sem conta. Ao entrar, o painel passa a mostrar os dados da sua conta.</p>
+        <button class="btn block" type="button" id="mergeSend">Enviar para minha conta</button>
+        <button class="btn s block" type="button" id="mergeSkip">Não enviar</button>
+        <p class="hint">Se não enviar, uma cópia de segurança fica guardada neste navegador.</p>
+      </section>
+
+      <div class="auth-alt" id="localBox">
+        <p><b>Só quer conhecer?</b> Os dados ficam salvos apenas neste navegador.</p>
+        <button type="button" class="btn s" id="localBtn">Continuar sem conta</button>
+      </div>
+      <p class="auth-note">Versão de testes: use apenas nomes e notas fictícios.</p>
+    </div>
+  </main>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-client.js"></script>
-<script src="supabase-sync.js"></script>
-<script src="app.js"></script></body></html>
+<script src="auth.js"></script>
+</body>
+</html>

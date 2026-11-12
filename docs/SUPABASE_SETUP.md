@@ -31,7 +31,7 @@ O app original usa `localStorage` e operações síncronas. O SDK Supabase foi p
 
 ## 5. Perfil e autenticação
 
-A tabela `teachers` associa `auth.users.id` ao professor. O fluxo de onboarding deverá:
+A tabela `teachers` associa `auth.users.id` ao professor. A tela de entrada (`index.html` + `auth.js`) faz este onboarding em **Criar conta**:
 1. Criar conta com Supabase Auth.
 2. Criar uma escola vinculada à conta autenticada (a migration registra `created_by`).
 3. Criar o perfil `teachers` com `auth_user_id = auth.uid()`.

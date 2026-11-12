@@ -44,3 +44,19 @@ td input{width:90px;padding:5px 8px}
 @media(max-width:900px){.layout,.collapsed .layout{grid-template-columns:1fr}
 aside{position:fixed;left:0;top:58px;z-index:30;width:240px;transform:translateX(-100%);transition:transform .2s}
 .collapsed aside button span+span{display:inline}.open aside{transform:none;box-shadow:var(--sh)}.esc{display:none}main{padding:16px 12px}.kv{grid-template-columns:1fr}}
+/* ===== agente de IA: análise e revisão de atividades ===== */
+.h-sec{margin-top:18px}
+.row-act{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;margin:14px 0 0}.row-act .muted{font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:0 0 18px;padding:0 0 16px;border-bottom:1px solid var(--bd)}
+.stats b{display:block;font-size:24px;font-variant-numeric:tabular-nums}.stats span{color:var(--mt);font-size:13px}
+.ops{margin:0;padding-left:20px;font-size:14px}.ops li{margin:4px 0}
+fieldset{border:0;margin:0;padding:0;min-width:0}legend{font-size:12px;color:var(--mt);margin-bottom:6px;padding:0}
+.choice{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;margin:0 0 8px;border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-size:14px;color:var(--tx)}
+.choice:hover{border-color:var(--pr)}.choice:has(input:checked){border-color:var(--pr);background:var(--prs)}
+.choice input,.check input{width:auto;margin:3px 0 0;accent-color:var(--pr)}.choice .muted{font-size:13px}.choice .chip{margin-left:6px;vertical-align:1px}
+.choice-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 12px;padding:8px 2px 4px}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--tx);margin:0;cursor:pointer}
+.aiq{padding:10px 0;border-bottom:1px solid var(--bd)}.aiq:last-child{border-bottom:0}.aiq ol{margin:6px 0 0;padding-left:24px}.aiq label{margin-top:8px}
+details.aiq summary{cursor:pointer;padding:4px 0}
+.warnbox{background:var(--wns);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--tx)}.warnbox ul{margin:6px 0 0;padding-left:20px}
+.choice-list[hidden]{display:none}.chip{white-space:nowrap}
