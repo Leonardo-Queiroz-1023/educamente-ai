@@ -17,9 +17,9 @@ Variáveis em `agent/.env.local`:
 
 | Variável | Para quê |
 |---|---|
-| `AI_PROVIDER` | Provedor de IA. Hoje: `anthropic` (Claude). |
-| `AI_PROVIDER_API_KEY` | Chave da API do provedor (Console da Anthropic). **Só no servidor.** |
-| `AI_MODEL` | Modelo. Padrão: `claude-opus-5-5`. |
+| `AI_PROVIDER` | `anthropic` (Claude) ou `gemini` (Google AI Studio). |
+| `AI_PROVIDER_API_KEY` | Chave do provedor: Console da Anthropic ou [aistudio.google.com/apikey](https://aistudio.google.com/apikey). **Só no servidor.** |
+| `AI_MODEL` | Modelo. Em branco: `claude-opus-5-5` (anthropic) ou `gemini-3.8-flash` (gemini). |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Os mesmos valores públicos do `supabase-config.js`. Não use a `service_role`. |
 | `ALLOWED_ORIGINS` | Origens do front-end autorizadas (CORS). Padrão: Live Server em `127.0.0.1:5500` e `localhost:5500`. |
 
@@ -30,6 +30,14 @@ Antes do primeiro uso, aplique a migration `supabase/migrations/202611120001_ai_
 `GET /api/health` mostra se o Supabase e a chave da IA estão configurados, sem expor segredos. No painel: **Configurações → Verificar serviço de IA**.
 
 Sem `AI_PROVIDER_API_KEY`, as rotas de IA respondem `AI_NOT_CONFIGURED` com a instrução do que configurar. Nenhuma resposta é simulada.
+
+## Modo demonstração (sem login, só para apresentar o MVP)
+
+Com `DEMO_MODE=true` em `agent/.env.local`, a IA funciona **sem login**: o painel envia ao agente uma cópia dos dados da turma que estão no navegador (ids, notas, títulos e conteúdos das avaliações; **sem nomes de alunos nem observações**), o agente roda em memória e devolve o resultado, que fica salvo só no navegador. Nada é lido ou gravado no Supabase.
+
+Para apresentar: `DEMO_MODE=true`, reinicie o serviço, abra o app, clique em **Continuar sem conta**, carregue os dados de demonstração (Configurações) e use **Análise pedagógica**.
+
+Cuidados: a rota não exige login, então quem alcançar o serviço gasta a sua cota de IA. Há checagem de origem (`ALLOWED_ORIGINS`), limite de 10 chamadas por IP a cada 10 minutos e limites de tamanho. Deixe `DEMO_MODE=false` fora das apresentações e nunca use com dados reais de alunos.
 
 ## Rotas
 
@@ -43,6 +51,8 @@ Sem `AI_PROVIDER_API_KEY`, as rotas de IA respondem `AI_NOT_CONFIGURED` com a in
 
 Todas exigem `Authorization: Bearer <token da sessão Supabase>`.
 
+No modo demonstração (sem login, só com `DEMO_MODE=true` e origem autorizada): `POST /api/demo/analyze`, `POST /api/demo/activities` (ambas recebem `snapshot` com os dados da turma) e `POST /api/demo/activities/validate` (confere a estrutura de uma atividade editada ou a aprovar, sem IA).
+
 ## Arquitetura
 
 ```
@@ -50,7 +60,7 @@ app/api/...            Route Handlers (validação Zod, autenticação, CORS, er
 src/lib/auth.ts        Valida o token e cria um cliente Supabase COMO o professor (RLS vale)
 src/lib/data/          Repositório de dados (Supabase; versão em memória nos testes)
 src/lib/domain/        Cálculos de desempenho, pseudônimos, níveis, validação, proteções
-src/lib/ai/            Camada do provedor: interface neutra + adaptador Anthropic
+src/lib/ai/            Camada do provedor: interface neutra + adaptadores Anthropic e Gemini
 src/lib/agent/         Prompts, ferramentas, loop do agente e as duas tarefas
 ```
 
@@ -81,7 +91,7 @@ src/lib/agent/         Prompts, ferramentas, loop do agente e as duas tarefas
 ## Testes
 
 ```bash
-npm test          # 13 testes: cálculos, proteções, validação e os 5 cenários
+npm test          # 21 testes: cálculos, proteções, validação, os 5 cenários, adaptador Gemini e modo demonstração
 npm run typecheck
 npm run build
 ```

@@ -24,6 +24,8 @@ O painel tem a página **Análise pedagógica** e o botão **Gerar atividade com
 
 A IA recebe só códigos de estudantes (E1, E2…), nunca nomes. Toda atividade gerada fica como rascunho até o professor aprovar.
 
+**Apresentação do MVP sem login:** com `DEMO_MODE=true` em `agent/.env.local`, a IA também funciona em **Continuar sem conta**, usando os dados do navegador. Veja os cuidados em [agent/README.md](agent/README.md#modo-demonstração-sem-login-só-para-apresentar-o-mvp).
+
 ## Importador incluído
 
 `importar-dados.html` e `importar-dados.js` são mantidos para a migração inicial dos registros locais. Abra pelo mesmo Live Server e na mesma origem de `index.html`. Quem usou o modo sem conta também pode enviar esses registros ao entrar: a tela de entrada oferece **Enviar para minha conta**.

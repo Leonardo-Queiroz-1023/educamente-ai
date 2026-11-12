@@ -171,12 +171,12 @@ function demoData(){const T="demo_t1",ids=n=>"demo_"+n,c="2026-09-01T10:00:00.00
  [["Lista de exercícios de multiplicação","Multiplicação","Exercícios","Concluída","2026-09-18","2026-09-25"],["Questionário de divisão","Divisão","Questionário","Em andamento","2026-11-09","2026-11-16"],["Revisão de frações","Frações","Revisão","Planejada","2026-11-18","2026-11-20"]].forEach(([titulo,conteudo,tipo,status,aplicacao,prazo],i)=>DB.atividades.push({id:ids("x"+i),titulo,turmaId:T,componente:"Matemática",conteudo,tipo,status,aplicacao,prazo,descricao:"",objetivo:"Praticar "+conteudo.toLowerCase()+".",habilidade:"",instrucoes:"Resolver individualmente, com apoio do professor.",questoes:"1) ...\n2) ...",gabarito:"",criadoEm:c}));
  [["Multiplicação","2026-09-01","2026-09-20"],["Frações","2026-10-15","2026-11-20"]].forEach(([conteudo,inicio,fim],i)=>DB.planejamentos.push({id:ids("p"+i),turmaId:T,componente:"Matemática",conteudo,habilidade:"Resolver problemas com "+conteudo.toLowerCase(),inicio,fim,objetivo:"Consolidar "+conteudo.toLowerCase()+" ao longo do período.",obs:"",criadoEm:c}));
  DB.settings.demo=true;persist()}
-function clearDemo(){const d=x=>String(x.id||"").startsWith("demo_")||String(x.turmaId||"").startsWith("demo_");["alunos","avaliacoes","resultados","atividades","planejamentos","turmas"].forEach(k=>DB[k]=DB[k].filter(x=>!d(x)&&!String(x.avaliacaoId||"").startsWith("demo_")));DB.settings.demo=false;persist()}
+function clearDemo(){const d=x=>String(x.id||"").startsWith("demo_")||String(x.turmaId||"").startsWith("demo_");["alunos","avaliacoes","resultados","atividades","planejamentos","turmas"].forEach(k=>DB[k]=DB[k].filter(x=>!d(x)&&!String(x.avaliacaoId||"").startsWith("demo_")));DB.analisesIA=(DB.analisesIA||[]).filter(a=>!String(a.turmaId).startsWith("demo_"));DB.settings.demo=false;persist()}
 const cfgView=()=>{const cloud=window.educamenteSync?.state;return `<h1>Configurações</h1><p class="sub">Perfil e armazenamento da EducaMente AI.</p>
 <div class="card"><h2>Perfil</h2><dl class="kv"><dt>Professor</dt><dd>${esc(cloud?.teacher?.name||"Conta local")}</dd><dt>Escola</dt><dd>${esc(cloud?.schoolName||DB.turmas[0]?.escola||"—")}</dd><dt>Acesso</dt><dd>${cloud?.authenticated?"Conectado ao Supabase":"Modo local (sem sessão autenticada)"}</dd></dl></div>
 <div class="card"><h2>Armazenamento</h2><p class="note">${cloud?.authenticated?"As alterações são sincronizadas com o Supabase. O navegador mantém um cache local de apoio.":"O aplicativo está usando o armazenamento local. Para sincronizar com a nuvem, use o botão Entrar no topo da página e acesse sua conta."}</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn g" data-act="demo">Carregar dados fictícios</button><button class="btn s" data-act="cdemo">Limpar dados de demonstração</button><button class="btn d" data-act="call">Apagar dados deste navegador</button></div></div>
-<div class="card"><h2>Inteligência artificial</h2><p class="muted" style="margin:0 0 12px">A análise pedagógica e a geração de atividades usam o serviço de IA em <b>${esc(AGENT_URL)}</b>, com a sua sessão. A IA recebe apenas códigos de estudantes, nunca nomes, e toda atividade gerada fica como rascunho até você aprovar.</p><button class="btn s" data-act="aiHealth">Verificar serviço de IA</button></div>`};
+<div class="card"><h2>Inteligência artificial</h2><p class="muted" style="margin:0 0 12px">A análise pedagógica e a geração de atividades usam o serviço de IA em <b>${esc(AGENT_URL)}</b>, com a sua sessão${AI_DEMO?" ou, sem login, no modo demonstração (dados deste navegador)":""}. A IA recebe apenas códigos de estudantes, nunca nomes, e toda atividade gerada fica como rascunho até você aprovar.</p><button class="btn s" data-act="aiHealth">Verificar serviço de IA</button></div>`};
 /* ===== agente de IA (serviço em agent/, chamado com a sessão do professor) ===== */
 const AGENT_URL=((window.EDUCAMENTE_SUPABASE_CONFIG||{}).agentUrl||"http://localhost:3000").replace(/\/$/,"");
 const LEVEL={
@@ -190,15 +190,40 @@ const rid=(g,id)=>window.educamenteSync.remoteIdOf(g,id),lid=(g,u)=>window.educa
 const statusLabel=s=>s==="draft"?"Aguardando aprovação":s||"—";
 const statusChip=s=>`<span class="chip ${s==="Concluída"?"ok":s==="Em andamento"||s==="draft"?"wn":""}">${esc(statusLabel(s))}</span>`;
 
+/* Modo demonstração (MVP): o serviço de IA pode aceitar uso sem login (DEMO_MODE=true no agent).
+   Nesse caso, sem conta conectada, a IA trabalha sobre uma cópia dos dados deste navegador. */
+let AI_DEMO=false;
+const aiOn=()=>cloudOn()||AI_DEMO,demoAi=()=>!cloudOn()&&AI_DEMO;
+fetch(AGENT_URL+"/api/health").then(r=>r.json()).then(j=>{const was=AI_DEMO;AI_DEMO=!!j.demo_mode;if(AI_DEMO!==was)render()}).catch(()=>{});
+
+/* Cópia da turma enviada no modo demonstração: ids, notas e conteúdos. Nomes de alunos e observações não saem do navegador. */
+function demoSnapshot(turmaId){const t=Svc.get("turmas",turmaId),avs=DB.avaliacoes.filter(a=>a.turmaId===turmaId),avIds=new Set(avs.map(a=>a.id));
+ return{class:{id:rid("turmas",t.id),name:t.nome,grade:t.ano||null},
+  students:DB.alunos.filter(a=>a.turmaId===turmaId).map(a=>({id:rid("alunos",a.id),...(a.criadoEm?{created_at:a.criadoEm}:{})})),
+  assessments:avs.map(a=>({id:rid("avaliacoes",a.id),title:a.nome,subject:a.componente||"",content:a.conteudo||"",assessment_date:a.data,total_points:Number(a.total)})),
+  results:DB.resultados.filter(r=>avIds.has(r.avaliacaoId)).map(r=>({id:rid("resultados",r.id),assessment_id:rid("avaliacoes",r.avaliacaoId),student_id:rid("alunos",r.alunoId),score:Number(r.pontos)})),
+  activities:DB.atividades.filter(x=>x.turmaId===turmaId).slice(-100).map(x=>({id:rid("atividades",x.id),title:x.titulo,subject:x.componente||null,content:x.conteudo||null,activity_type:x.tipo||null,status:x.status||"Rascunho",origin:x.origem==="ai"?"ai":"teacher",complexity:x.ia?.complexity||null,...(x.criadoEm?{created_at:x.criadoEm}:{})})),
+  analyses:(DB.analisesIA||[]).filter(a=>a.turmaId===turmaId).slice(-30).map(a=>({id:a.id,content:a.content||null,summary:String(a.summary).slice(0,2000),created_at:a.created_at}))}}
+/* Linha no formato da tabela activities a partir do registro local (para reaproveitar mapActivity). */
+const rowFromLocal=(a,p={})=>{const ia=a.ia||{};return{id:rid("atividades",a.id),title:a.titulo,description:a.descricao,class_id:rid("turmas",a.turmaId),subject:a.componente,content:a.conteudo,objective:a.objetivo,skill:a.habilidade,activity_type:a.tipo,application_date:a.aplicacao||null,deadline:a.prazo||null,instructions:a.instrucoes,questions:ia.questions,answer_key:ia.answer_key,worked_examples:ia.worked_examples,teacher_guidance:ia.teacher_guidance,justification:ia.justification,complexity:ia.complexity,target_group:ia.target_group,analysis_id:ia.analysis_id,approved_at:ia.approved_at,generation_metadata:ia.generation_metadata,status:a.status,origin:"ai",created_at:a.criadoEm,...p}};
+/* Confere a estrutura no servidor (mesmas regras do fluxo com login) antes de mudar o registro local. */
+async function demoValidate(a,edit){const ia=a.ia||{};
+ const v=await agentFetch("/api/demo/activities/validate",{method:"POST",body:{activity:{title:a.titulo,objective:a.objetivo||"",skill:a.habilidade||"",instructions:a.instrucoes||"",teacher_guidance:ia.teacher_guidance||"",worked_examples:ia.worked_examples||[],questions:ia.questions||[],answer_key:ia.answer_key||[],...edit,content:a.conteudo||"",complexity:ia.complexity||"consolidacao",justification:ia.justification||""}}});
+ if(!v.valid)throw Object.assign(new Error(edit?"A atividade editada tem problemas. Corrija e salve de novo.":"A atividade ainda tem problemas e não pode ser aprovada. Edite e corrija antes."),{details:{issues:v.issues}})}
+
 async function agentFetch(path,opts={}){
  const client=window.educamenteSupabase?.client,sync=window.educamenteSync;
- const session=client?(await client.auth.getSession()).data?.session:null;
- if(!session?.access_token)throw new Error("Entre com sua conta para usar a IA.");
- // A IA lê o banco: os cadastros pendentes precisam chegar à nuvem antes.
- await sync?.flush();
- if(sync?.state?.dirty)throw new Error("Há alterações que ainda não chegaram à nuvem. Verifique a conexão e tente de novo.");
+ const headers={"Content-Type":"application/json"};
+ if(cloudOn()){
+  const session=client?(await client.auth.getSession()).data?.session:null;
+  if(!session?.access_token)throw new Error("Sua sessão expirou. Saia e entre novamente.");
+  // A IA lê o banco: os cadastros pendentes precisam chegar à nuvem antes.
+  await sync?.flush();
+  if(sync?.state?.dirty)throw new Error("Há alterações que ainda não chegaram à nuvem. Verifique a conexão e tente de novo.");
+  headers.Authorization="Bearer "+session.access_token;
+ }else if(!AI_DEMO)throw new Error("Entre com sua conta para usar a IA.");
  let r;
- try{r=await fetch(AGENT_URL+path,{method:opts.method||"GET",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:opts.body?JSON.stringify(opts.body):undefined})}
+ try{r=await fetch(AGENT_URL+path,{method:opts.method||"GET",headers,body:opts.body?JSON.stringify(opts.body):undefined})}
  catch(e){throw Object.assign(new Error(`O serviço de IA não respondeu em ${AGENT_URL}. Confira se ele está rodando (npm run dev na pasta agent).`),{retryable:true})}
  const j=await r.json().catch(()=>({}));
  if(!r.ok)throw Object.assign(new Error(j.error?.message||`Erro ${r.status} no serviço de IA.`),{code:j.error?.code,retryable:j.error?.retryable,details:j.error?.details});
@@ -219,14 +244,14 @@ function anView(){
  if(!DB.turmas.length)return head+`<div class="card empty">Cadastre uma turma, os alunos e uma avaliação com resultados para analisar.</div>`;
  if(!Svc.get("turmas",AN.turma))AN.turma=DB.turmas[0].id;
  const avs=DB.avaliacoes.filter(a=>a.turmaId===AN.turma),conts=[...new Set(avs.map(a=>a.conteudo).filter(Boolean))];
- return head+(cloudOn()?"":`<p class="note">A IA usa os dados da sua conta na nuvem. Use o botão <b>Entrar</b> no topo para acessar sua conta.</p>`)+
+ return head+(cloudOn()?"":AI_DEMO?`<p class="note"><b>Modo demonstração:</b> a IA usa os dados salvos neste navegador, sem login. Os nomes dos alunos não são enviados, e os resultados ficam só aqui.</p>`:`<p class="note">A IA usa os dados da sua conta na nuvem. Use o botão <b>Entrar</b> no topo para acessar sua conta.</p>`)+
  `<div class="card"><div class="flt">
   <div><label for="anT">Turma</label><select id="anT" data-an="turma">${turmaO().map(([a,b])=>`<option value="${esc(a)}" ${a===AN.turma?"selected":""}>${esc(b)}</option>`).join("")}</select></div>
   <div><label for="anA">Avaliação</label><select id="anA" data-an="avaliacao"><option value="">Todas</option>${avs.map(a=>`<option value="${esc(a.id)}" ${a.id===AN.avaliacao?"selected":""}>${esc(a.nome)} (${dt(a.data)})</option>`).join("")}</select></div>
   <div><label for="anC">Conteúdo</label><select id="anC" data-an="conteudo"><option value="">Todos</option>${conts.map(c=>`<option value="${esc(c)}" ${c===AN.conteudo?"selected":""}>${esc(c)}</option>`).join("")}</select></div></div>
-  <div class="row-act"><button class="btn" data-act="anRun" ${AN.busy||!cloudOn()?"disabled":""}>${AN.busy?"Analisando…":"Analisar aprendizagem com IA"}</button>${AN.busy?`<span class="muted" role="status">A IA está consultando e analisando os resultados. Pode levar até um minuto.</span>`:""}</div></div>
+  <div class="row-act"><button class="btn" data-act="anRun" ${AN.busy||!aiOn()?"disabled":""}>${AN.busy?"Analisando…":"Analisar aprendizagem com IA"}</button>${AN.busy?`<span class="muted" role="status">A IA está consultando e analisando os resultados. Pode levar até um minuto.</span>`:""}</div></div>
  <div id="anOut" aria-live="polite">${anResultHtml()}</div>
- <div class="card"><div class="top" style="margin-bottom:8px"><h2 style="margin:0">Análises anteriores</h2><button class="btn s" data-act="anHist" ${cloudOn()?"":"disabled"}>${AN.history?"Atualizar":"Carregar histórico"}</button></div>${anHistHtml()}</div>`}
+ <div class="card"><div class="top" style="margin-bottom:8px"><h2 style="margin:0">Análises anteriores</h2><button class="btn s" data-act="anHist" ${aiOn()?"":"disabled"}>${AN.history?"Atualizar":"Carregar histórico"}</button></div>${anHistHtml()}</div>`}
 
 function anResultHtml(){
  if(AN.error)return`<div class="card"><h2>Não foi possível concluir a análise</h2><p class="err" style="font-size:14px">${esc(AN.error.message)}</p><p class="muted" style="font-size:13px">Nenhum registro foi alterado.</p>${AN.error.retryable!==false?`<button class="btn s" data-act="anRun">Tentar novamente</button>`:""}</div>`+opsHtml(AN.error.details?.operations);
@@ -256,16 +281,26 @@ function anHistHtml(){const h=AN.history;
 async function anRun(){if(AN.busy)return;
  AN.busy=true;AN.error=null;AN.result=null;render();
  try{const a=AN.avaliacao&&Svc.get("avaliacoes",AN.avaliacao);
-  AN.result=await agentFetch("/api/agent/analyze",{method:"POST",body:{class_id:rid("turmas",AN.turma),...(a?{assessment_id:rid("avaliacoes",a.id)}:{}),...(AN.conteudo?{content:AN.conteudo}:{})}});
+  const filters={...(a?{assessment_id:rid("avaliacoes",a.id)}:{}),...(AN.conteudo?{content:AN.conteudo}:{})};
+  AN.result=demoAi()
+   ?await agentFetch("/api/demo/analyze",{method:"POST",body:{snapshot:demoSnapshot(AN.turma),...filters}})
+   :await agentFetch("/api/agent/analyze",{method:"POST",body:{class_id:rid("turmas",AN.turma),...filters}});
+  // No modo demonstração o histórico fica neste navegador.
+  if(demoAi()&&AN.result.status==="ok"){const x=AN.result.analysis;
+   (DB.analisesIA??=[]).push({id:x.id,turmaId:AN.turma,created_at:x.created_at,content:AN.conteudo||null,summary:x.summary,attention_points:x.attention_points,recommendations:x.recommendations,students:AN.result.students});
+   Repo.write(DB)}
   AN.history=null}
  catch(e){AN.error=e}
  finally{AN.busy=false;if(view==="analise")render()}}
-async function anHist(){try{AN.history=await agentFetch(`/api/agent/history?class_id=${encodeURIComponent(rid("turmas",AN.turma))}`)}catch(e){AN.history={error:e.message}}render()}
+async function anHist(){
+ if(demoAi()){AN.history={analyses:(DB.analisesIA||[]).filter(a=>a.turmaId===AN.turma).slice().reverse(),
+  activities:DB.atividades.filter(a=>a.turmaId===AN.turma&&a.origem==="ai").map(a=>({id:rid("atividades",a.id),title:a.titulo,status:a.status,created_at:a.criadoEm||""})).reverse()};return render()}
+ try{AN.history=await agentFetch(`/api/agent/history?class_id=${encodeURIComponent(rid("turmas",AN.turma))}`)}catch(e){AN.history={error:e.message}}render()}
 
 /* ----- geração de atividade com IA ----- */
 const GEN={},AI_LAST={};
 function aiGenM(pre){
- if(!cloudOn())return openM(`<h2>Gerar atividade com IA</h2><p>A IA consulta os resultados salvos na sua conta. Use o botão <b>Entrar</b> no topo para acessar sua conta e tente de novo.</p><p style="text-align:right;margin:16px 0 0"><button class="btn" data-act="close">Entendi</button></p>`);
+ if(!aiOn())return openM(`<h2>Gerar atividade com IA</h2><p>A IA consulta os resultados salvos na sua conta. Use o botão <b>Entrar</b> no topo para acessar sua conta e tente de novo.</p><p style="text-align:right;margin:16px 0 0"><button class="btn" data-act="close">Entendi</button></p>`);
  if(!DB.turmas.length)return openM(`<h2>Cadastre uma turma primeiro</h2><p class="muted">A atividade é personalizada a partir dos resultados de uma turma.</p><button class="btn" data-act="close">Entendi</button>`);
  for(const k of Object.keys(GEN))delete GEN[k];
  Object.assign(GEN,{turmaId:Svc.get("turmas",AN.turma)?AN.turma:DB.turmas[0].id,publico:"turma",nivel:"consolidacao",qtd:5,tipo:"Exercícios",alunos:[]},pre||{});
@@ -312,7 +347,9 @@ async function aiGenRun(){if(GEN.busy)return;readGen();
    ...(GEN.componente?{subject:GEN.componente}:{}),...(GEN.habilidade?{skill:GEN.habilidade}:{}),...(GEN.objetivo?{objective:GEN.objetivo}:{}),...(GEN.notas?{teacher_notes:GEN.notas}:{}),
    ...(GEN.publico==="estudantes_selecionados"?{student_ids:GEN.alunos.map(id=>rid("alunos",id))}:{}),
    ...(GEN.analysisId?{analysis_id:GEN.analysisId}:{}),...(GEN.regenerateOf?{regenerate_of:GEN.regenerateOf}:{})};
-  const out=await agentFetch("/api/agent/activities",{method:"POST",body});
+  const out=demoAi()
+   ?await agentFetch("/api/demo/activities",{method:"POST",body:{...body,snapshot:demoSnapshot(GEN.turmaId)}})
+   :await agentFetch("/api/agent/activities",{method:"POST",body});
   const rec=upsertLocalActivity(out.activity);
   AI_LAST[rec.id]={operations:out.operations,validation:out.validation};
   GEN.busy=false;closeM();render();aiPreview(rec.id);toast("Rascunho gerado. Revise antes de aprovar.")}
@@ -360,12 +397,13 @@ async function aiSave(id){const a=Svc.get("atividades",id),ia=a.ia||{},v=x=>$(x)
   questions:(ia.questions||[]).map((q,i)=>({number:q.number,type:q.type,statement:v("ae_q"+i),options:q.type==="multipla_escolha"?v("ae_op"+i).split("\n").map(s=>s.trim()).filter(Boolean):[]})),
   answer_key:(ia.questions||[]).map((q,i)=>({question:q.number,answer:v("ae_a"+i),explanation:v("ae_e"+i)}))};
  $("ae_save").disabled=true;
- try{const out=await agentFetch(`/api/activities/${encodeURIComponent(rid("atividades",id))}`,{method:"PATCH",body});
-  upsertLocalActivity(out.activity);render();aiPreview(id);toast("Alterações salvas. A atividade voltou a ser rascunho.")}
+ try{if(demoAi()){await demoValidate(a,body);
+   upsertLocalActivity(rowFromLocal(a,{title:body.title,objective:body.objective,skill:body.skill||a.habilidade,instructions:body.instructions,teacher_guidance:body.teacher_guidance,worked_examples:body.worked_examples,questions:body.questions,answer_key:body.answer_key,status:"draft",approved_at:null}))}
+  else{const out=await agentFetch(`/api/activities/${encodeURIComponent(rid("atividades",id))}`,{method:"PATCH",body});upsertLocalActivity(out.activity)}render();aiPreview(id);toast("Alterações salvas. A atividade voltou a ser rascunho.")}
  catch(e){$("ae_save").disabled=false;const iss=e.details?.issues||[];$("ae_err").innerHTML=esc(e.message)+(iss.length?`<ul>${iss.map(i=>`<li>${esc(i.message||i.path+": "+i.message)}</li>`).join("")}</ul>`:"")}}
 async function aiApprove(id){
- try{const out=await agentFetch(`/api/activities/${encodeURIComponent(rid("atividades",id))}/approve`,{method:"POST"});
-  upsertLocalActivity(out.activity);render();aiPreview(id);toast("Atividade aprovada.")}
+ try{if(demoAi()){const a=Svc.get("atividades",id);await demoValidate(a);upsertLocalActivity(rowFromLocal(a,{status:"Planejada",approved_at:new Date().toISOString()}))}
+  else{const out=await agentFetch(`/api/activities/${encodeURIComponent(rid("atividades",id))}/approve`,{method:"POST"});upsertLocalActivity(out.activity)}render();aiPreview(id);toast("Atividade aprovada.")}
  catch(e){const iss=e.details?.issues||[];if($("ai_err"))$("ai_err").innerHTML=esc(e.message)+(iss.length?`<ul>${iss.map(i=>`<li>${esc(i.message)}</li>`).join("")}</ul>`:"")}}
 function aiRegen(id){const a=Svc.get("atividades",id);if(!a)return;const ia=a.ia||{},r=(ia.generation_metadata||{}).request||{};
  aiGenM({turmaId:a.turmaId,conteudo:r.content||a.conteudo,componente:r.subject||a.componente,habilidade:r.skill||"",objetivo:r.objective||"",
@@ -416,7 +454,7 @@ const ACT={
  del2(m,id){Svc.remove(m,id);closeM();render();toast("Registro excluído.")},
  demo(){if(DB.settings.demo||DB.turmas.some(t=>t.id==="demo_t1"))return toast("Os dados de demonstração já foram carregados.");demoData();render();toast("Dados fictícios carregados.")},
  cdemo:()=>conf("Remover apenas os dados fictícios de demonstração?","cdemo2"),cdemo2(){clearDemo();closeM();render();toast("Dados de demonstração removidos.")},
- call:()=>conf("Apagar TODOS os dados armazenados neste navegador?","call2"),call2(){["turmas","alunos","avaliacoes","resultados","atividades","planejamentos"].forEach(k=>DB[k]=[]);DB.settings={};persist();closeM();render();toast("Todos os dados foram apagados.")}};
+ call:()=>conf("Apagar TODOS os dados armazenados neste navegador?","call2"),call2(){["turmas","alunos","avaliacoes","resultados","atividades","planejamentos"].forEach(k=>DB[k]=[]);DB.settings={};DB.analisesIA=[];persist();closeM();render();toast("Todos os dados foram apagados.")}};
 document.addEventListener("click",e=>{if(e.target.classList.contains("ov")){if(!GEN.busy)closeM();return}const t=e.target.closest("[data-act]");if(!t)return;const[a,...r]=t.dataset.act.split(":");ACT[a]?.(...r)});
 document.addEventListener("input",e=>{const t=e.target,d=t.dataset;
  if(d.flt){const[m,k]=d.flt.split("|");(FL[m]??={})[k]=t.value;$("tbl").innerHTML=tableHtml(m)}
