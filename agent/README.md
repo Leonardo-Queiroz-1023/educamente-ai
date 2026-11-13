@@ -17,9 +17,10 @@ Variáveis em `agent/.env.local`:
 
 | Variável | Para quê |
 |---|---|
-| `AI_PROVIDER` | `anthropic` (Claude) ou `gemini` (Google AI Studio). |
+| `AI_PROVIDER` | `anthropic` (Claude), `gemini` (Google AI Studio) ou `openrouter` (vários modelos com uma chave). |
 | `AI_PROVIDER_API_KEY` | Chave do provedor: Console da Anthropic ou [aistudio.google.com/apikey](https://aistudio.google.com/apikey). **Só no servidor.** |
-| `AI_MODEL` | Modelo. Em branco: `claude-opus-5-5` (anthropic) ou `gemini-3.8-flash` (gemini). |
+| `AI_MODEL` | Modelo. Em branco: `claude-opus-5-5` (anthropic), `gemini-3.8-flash` (gemini) ou `google/gemini-3.8-flash` (openrouter). |
+| `OPENROUTER_API_KEY` | Chave do [OpenRouter](https://openrouter.ai/keys), lida só com `AI_PROVIDER=openrouter` (a conta precisa de créditos). Assim dá para alternar entre `gemini` e `openrouter` sem mexer nas chaves. **Só no servidor.** |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Os mesmos valores públicos do `supabase-config.js`. Não use a `service_role`. |
 | `ALLOWED_ORIGINS` | Origens do front-end autorizadas (CORS). Padrão: Live Server em `127.0.0.1:5500` e `localhost:5500`. |
 
@@ -36,6 +37,8 @@ Sem `AI_PROVIDER_API_KEY`, as rotas de IA respondem `AI_NOT_CONFIGURED` com a in
 Com `DEMO_MODE=true` em `agent/.env.local`, a IA funciona **sem login**: o painel envia ao agente uma cópia dos dados da turma que estão no navegador (ids, notas, títulos e conteúdos das avaliações; **sem nomes de alunos nem observações**), o agente roda em memória e devolve o resultado, que fica salvo só no navegador. Nada é lido ou gravado no Supabase.
 
 Para apresentar: `DEMO_MODE=true`, reinicie o serviço, abra o app, clique em **Continuar sem conta**, carregue os dados de demonstração (Configurações) e use **Análise pedagógica**.
+
+**Para quem clonar o repositório usar a IA sem configurar nada:** publique o agente uma vez na Vercel, com `DEMO_MODE=true`, e coloque o endereço em `agentUrl` no `supabase-config.js`. Passo a passo em [DEPLOY.md](DEPLOY.md).
 
 Cuidados: a rota não exige login, então quem alcançar o serviço gasta a sua cota de IA. Há checagem de origem (`ALLOWED_ORIGINS`), limite de 10 chamadas por IP a cada 10 minutos e limites de tamanho. Deixe `DEMO_MODE=false` fora das apresentações e nunca use com dados reais de alunos.
 

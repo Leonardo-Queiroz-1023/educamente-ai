@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getConfig } from "./config";
+import { getConfig, isAllowedOrigin } from "./config";
 import { AppError } from "./errors";
 import { noEmit, type EmitFn } from "./agent/events";
 
@@ -12,7 +12,7 @@ function corsHeaders(req: Request): Headers {
   } catch {
     allowed = [];
   }
-  if (origin && allowed.includes(origin)) {
+  if (origin && isAllowedOrigin(allowed, origin)) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Headers", "authorization, content-type");
     headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");

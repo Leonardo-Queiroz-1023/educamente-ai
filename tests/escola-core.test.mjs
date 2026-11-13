@@ -128,11 +128,14 @@ test('atestado aprovado converte só as faltas F do período em FJ', () => {
 
 test('responsável envia atividades só até o 6º ano', () => {
   const db = C.seed();
-  const anosIniciais = db.alunos.find((a) => db.turmas.find((t) => t.id === a.turmaId).serie === '5º ano');
+  const sexto = db.alunos.find((a) => db.turmas.find((t) => t.id === a.turmaId).serie === '6º ano');
   const nono = db.alunos.find((a) => a.turmaId === 't1');
-  assert.ok(anosIniciais, 'a semente precisa de uma turma até o 6º ano');
-  assert.equal(C.guardianCanSubmit(db, anosIniciais.id), true);
+  const medio = db.alunos.find((a) => db.turmas.find((t) => t.id === a.turmaId).serie === '1ª série');
+  assert.ok(sexto, 'a semente precisa de uma turma de 6º ano');
+  assert.equal(C.guardianCanSubmit(db, sexto.id), true);
   assert.equal(C.guardianCanSubmit(db, nono.id), false);
+  assert.ok(medio, 'a semente precisa de uma turma do ensino médio');
+  assert.equal(C.guardianCanSubmit(db, medio.id), false, '1ª série do médio não conta como "1º ano"');
   assert.equal(C.serieNumber('6º ano'), 6);
   assert.equal(C.serieNumber('1º Ano'), 1);
   assert.equal(C.serieNumber('Turma especial'), null);
@@ -143,12 +146,42 @@ test('responsável envia atividades só até o 6º ano', () => {
   assert.equal(C.guardianCanSubmit(db, 'nao-existe'), false);
 });
 
-test('a turma de anos iniciais tem atividade aberta para o responsável responder', () => {
+test('a turma de 6º ano tem atividade aberta para o responsável responder', () => {
   const db = C.seed();
-  const t = db.turmas.find((x) => x.serie === '5º ano');
+  const t = db.turmas.find((x) => x.serie === '6º ano');
   const at = db.atividades.find((x) => x.turmaId === t.id);
   assert.ok(at && at.prazo >= '2026-11-13');
   assert.ok(db.planos.some((p) => p.turmaId === t.id));
+});
+
+test('o público é do 6º ano do fundamental à 3ª série do médio', () => {
+  const db = C.seed();
+  assert.deepEqual(C.SERIES.EF, ['6º ano', '7º ano', '8º ano', '9º ano']);
+  assert.deepEqual(C.SERIES.EM, ['1ª série', '2ª série', '3ª série']);
+  for (const t of db.turmas) assert.ok([...C.SERIES.EF, ...C.SERIES.EM].includes(t.serie), `série fora do público: ${t.serie}`);
+  assert.equal(C.nivelDaSerie('8º ano'), 'EF');
+  assert.equal(C.nivelDaSerie('2ª série'), 'EM');
+  assert.equal(C.nivelDaSerie('3ª Série do Ensino Médio'), 'EM');
+  assert.equal(C.nivelDaSerie('Turma especial'), null);
+});
+
+test('o ensino médio tem matérias próprias e o fundamental II não', () => {
+  const db = C.seed();
+  const nomes = (serie) => C.materiasDaSerie(db, serie).map((m) => m.id);
+  assert.deepEqual(nomes('9º ano'), ['por', 'mat', 'cie', 'his', 'geo', 'ing', 'art', 'edf']);
+  assert.deepEqual(nomes('1ª série'), ['por', 'mat', 'fis', 'qui', 'bio', 'his', 'geo', 'fil', 'soc', 'ing', 'art', 'edf']);
+  const em = db.turmas.find((t) => t.serie === '1ª série');
+  const aluno = db.alunos.find((a) => a.turmaId === em.id);
+  // Boletim e frequência mostram só as matérias da série, todas com notas e aulas.
+  const boletim = C.gradeSummary(db, aluno.id);
+  assert.deepEqual(boletim.map((l) => l.materiaId), nomes('1ª série'));
+  assert.ok(boletim.every((l) => l.media != null));
+  assert.ok(C.attendanceSummary(db, aluno.id).every((l) => l.aulas > 0));
+  assert.ok(!C.gradeSummary(db, 'a1').some((l) => l.materiaId === 'fis'));
+  // Cada matéria da turma tem professor e plano anual.
+  assert.ok(em.professores.every((v) => v.professorId));
+  assert.equal(db.planos.filter((p) => p.turmaId === em.id).length, 12);
+  assert.ok(db.atividades.some((a) => a.turmaId === em.id && a.materiaId === 'fis'));
 });
 
 test('novos IDs de acesso e matrículas são únicos e no formato', () => {

@@ -8,7 +8,7 @@
  * limite por IP e limites de tamanho. Não use em produção com dados reais.
  */
 import { z } from "zod";
-import { getConfig } from "./config";
+import { getConfig, isAllowedOrigin } from "./config";
 import { InMemoryRepository } from "./data/memory-repository";
 import type { ClassInfo } from "./data/repository";
 import { AppError } from "./errors";
@@ -79,12 +79,15 @@ export function requireDemo(req: Request, opts: { rateLimit?: boolean } = {}): v
   if (!cfg.demoMode) {
     throw new AppError("FORBIDDEN", "O modo demonstração da IA está desligado. Entre com sua conta para usar a IA.");
   }
-  const origin = req.headers.get("origin");
-  if (!origin || !cfg.allowedOrigins.includes(origin)) {
+  if (!isAllowedOrigin(cfg.allowedOrigins, req.headers.get("origin"))) {
     throw new AppError("FORBIDDEN", "Origem não autorizada para o modo demonstração.");
   }
-  // Só as rotas que chamam a IA contam no limite.
-  if (opts.rateLimit !== false) enforceRateLimit(`demo:${clientIp(req)}`, 10, 10 * 60_000);
+  // Só as rotas que chamam a IA contam no limite: 10 por IP a cada 10 minutos e um teto geral
+  // por hora, que segura o gasto se o endereço público for muito usado.
+  if (opts.rateLimit !== false) {
+    enforceRateLimit(`demo:${clientIp(req)}`, 10, 10 * 60_000);
+    enforceRateLimit("demo:global", cfg.demoGlobalLimitPerHour, 60 * 60_000);
+  }
 }
 
 /** Monta um repositório em memória com a cópia enviada; a turma "pertence" ao professor de demonstração. */
