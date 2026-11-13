@@ -49,7 +49,25 @@ main.auth-main{display:grid;grid-template-columns:minmax(0,1fr);place-items:cent
 .auth-alt p{margin:0 0 12px}
 .auth-alt b{color:var(--tx)}
 
+/* Perfil de acesso: escolhe qual formulário aparece. */
+.auth-roles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 20px}
+.auth-roles button{font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:9px 4px;border-radius:9px;border:1px solid var(--bd);background:var(--sf);color:var(--mt);transition:border-color var(--fast) var(--ease),background-color var(--fast) var(--ease),color var(--fast) var(--ease)}
+.auth-roles button:hover{color:var(--tx);border-color:color-mix(in srgb,var(--pr) 45%,var(--bd))}
+.auth-roles button[aria-pressed="true"]{background:var(--prs);border-color:var(--pr);color:var(--pr)}
+
+.demo-acc{margin-top:22px;font-size:14px;border:1px solid var(--bd);border-radius:10px;padding:0 14px}
+.demo-acc summary{cursor:pointer;padding:12px 0;font-weight:600;color:var(--tx)}
+.demo-acc[open] summary{border-bottom:1px solid var(--bd);margin-bottom:10px}
+.demo-acc .hint{margin:0 0 8px}
+.demo-acc ul{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:4px}
+.demo-pick{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;width:100%;padding:8px 10px;border-radius:8px}
+.demo-pick:hover{background:var(--prs)}
+.demo-pick b{font-weight:600;color:var(--tx)}
+.demo-pick span{color:var(--mt);font-variant-numeric:tabular-nums;font-size:13px}
+.demo-acc > .link{display:inline-block;margin:0 0 12px}
+
 @media(max-width:600px){
+  .auth-roles{grid-template-columns:1fr 1fr}
   main.auth-main{place-items:start center;padding:32px 16px 40px}
   .auth-logo{font-size:24px;margin-bottom:24px}
 }

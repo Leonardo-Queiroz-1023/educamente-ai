@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portal da escola — EducaMente AI</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal">
+<header>
+  <button class="ib0" id="burger" type="button" aria-label="Abrir ou recolher o menu" aria-controls="nav">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="logo">Educa<b>Mente</b> <i>AI</i></div>
+  <div class="sp"></div>
+  <div class="esc" id="escola"></div>
+  <div class="who" id="who"></div>
+  <button class="ib0 txt" id="sair" type="button">Sair</button>
+</header>
+<div class="layout"><aside id="nav" aria-label="Menu do portal"></aside><main id="main" tabindex="-1"></main></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="supabase-config.js" onerror="void 0"></script>
+<script src="escola-core.js"></script>
+<script src="escola-store.js"></script>
+<script src="print-doc.js"></script>
+<script src="portal.js"></script>
+</body>
+</html>

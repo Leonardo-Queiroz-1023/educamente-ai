@@ -14,6 +14,9 @@ aside button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:12p
 aside button:hover{background:var(--prs)}aside button.on{background:var(--prs);color:var(--pr);font-weight:600}
 aside button span:first-child{width:20px;text-align:center;font-size:17px}
 .collapsed aside button span+span{display:none}
+aside a.portal-link{display:flex;gap:12px;align-items:center;margin-top:10px;padding:10px 12px;border-top:1px solid var(--bd);border-radius:0 0 10px 10px;color:var(--pr);font-weight:600;text-decoration:none}
+aside a.portal-link:hover{background:var(--prs)}aside a.portal-link span:first-child{width:20px;text-align:center;font-size:17px}
+.collapsed aside a.portal-link span+span{display:none}
 main{padding:24px;max-width:1150px;width:100%}
 h1{font-size:22px;margin:0}h2{font-size:15px;margin:0 0 12px}.sub{color:var(--mt);margin:2px 0 18px}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:var(--sh)}
@@ -114,3 +117,4 @@ aside button:active{transform:scale(.97)}
   .think-mark .spark,.think-mark .orbit,.think-steps li{animation:none}
   .think-now{animation:none;background:none;color:var(--mt)}
 }
+.print-row{margin:4px 0 12px}.print-row .muted{font-size:13px}

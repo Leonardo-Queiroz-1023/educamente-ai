@@ -29,7 +29,90 @@
     document.querySelector('.auth-tabs').hidden = !tabbed;
     document.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
     $('localBox').hidden = !tabbed;
+    const role = ['aluno', 'responsavel', 'coordenacao'].includes(name) ? name : 'professor';
+    document.querySelectorAll('[data-role]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.role === role)));
+    renderDemo(role);
   }
+
+  /* ===== perfis da escola (login demonstrativo, conferido neste navegador) ===== */
+  const PORTAL = 'portal.html';
+  const ROLE_LABEL = { professor: 'Professor', aluno: 'Aluno', responsavel: 'Responsável', coordenacao: 'Coordenação' };
+  const escola = () => window.EscolaStore?.load();
+  function demoAccesses(role) {
+    const db = escola();
+    if (!db) return [];
+    if (role === 'professor') return db.professores.map((p) => ({ label: p.nome, info: p.acesso, fill: { id: p.acesso }, panel: 'professorId' }));
+    if (role === 'aluno') return db.alunos.slice(0, 4).map((a) => ({ label: a.nome, info: a.acesso, fill: { id: a.acesso }, panel: 'aluno' }));
+    if (role === 'responsavel') {
+      // Primeiro um aluno até o 6º ano (o responsável envia atividades), depois os dos anos finais (só leitura).
+      const iniciais = db.alunos.filter((a) => window.EscolaCore.guardianCanSubmit(db, a.id)).slice(0, 2);
+      const finais = db.alunos.filter((a) => !window.EscolaCore.guardianCanSubmit(db, a.id)).slice(0, 2);
+      return [...iniciais, ...finais].map((a) => {
+        const serie = db.turmas.find((t) => t.id === a.turmaId)?.serie || '';
+        const envia = window.EscolaCore.guardianCanSubmit(db, a.id);
+        return { label: `${a.responsavel}, de ${a.nome}`, info: `${serie} · ${envia ? 'envia atividades' : 'só leitura'} · matrícula ${a.matricula}`, fill: { nome: a.nome, matricula: a.matricula }, panel: 'responsavel' };
+      });
+    }
+    return db.coordenadores.map((c) => ({ label: c.nome, info: c.acesso, fill: { id: c.acesso }, panel: 'coordenacao' }));
+  }
+  function renderDemo(role) {
+    const list = $('demoList');
+    if (!list) return;
+    list.innerHTML = '';
+    demoAccesses(role).forEach((acc) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'demo-pick';
+      const nome = document.createElement('b');
+      nome.textContent = acc.label;
+      const info = document.createElement('span');
+      info.textContent = acc.info;
+      b.append(nome, info);
+      b.addEventListener('click', () => {
+        say('');
+        show(acc.panel);
+        const form = document.querySelector(`[data-panel="${acc.panel}"]`);
+        Object.entries(acc.fill).forEach(([k, v]) => { const input = form.querySelector(`[data-cred="${k}"]`); if (input) input.value = v; });
+        form.querySelector('[type="submit"]').focus();
+      });
+      li.append(b);
+      list.append(li);
+    });
+  }
+  document.querySelectorAll('[data-demo]').forEach((form) => form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+    const db = escola();
+    if (!db) { say('Não foi possível carregar os dados de demonstração neste navegador.', 'error'); return; }
+    const creds = {};
+    form.querySelectorAll('[data-cred]').forEach((input) => { creds[input.dataset.cred] = input.value; });
+    const role = form.dataset.demo;
+    const found = window.EscolaCore.authenticate(db, role, creds);
+    if (!found) {
+      say(role === 'responsavel'
+        ? 'Nome e matrícula não conferem. Confira o nome completo do aluno, como na matrícula, e o número.'
+        : role === 'coordenacao' ? 'Chave de acesso não encontrada. Confira com a direção da escola.'
+          : 'ID de acesso não encontrado. Confira o e-mail enviado pela coordenação.', 'error');
+      form.querySelector('[data-cred]').focus();
+      return;
+    }
+    window.EscolaStore.session.set(found);
+    say(`Entrando como ${ROLE_LABEL[role].toLowerCase()}…`, 'ok');
+    location.href = PORTAL;
+  }));
+  document.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => {
+    say('');
+    const target = b.dataset.role === 'professor' ? 'login' : b.dataset.role;
+    show(target);
+    focusFirst(target);
+  }));
+  $('demoReset')?.addEventListener('click', () => {
+    if (!confirm('Restaurar os dados de demonstração? Turmas, alunos, chamadas e atividades criados neste navegador serão apagados.')) return;
+    window.EscolaStore?.reset();
+    show(document.querySelector('[data-panel]:not([hidden])')?.dataset.panel || 'login');
+    say('Dados de demonstração restaurados.', 'ok');
+  });
   function focusFirst(name) {
     document.querySelector(`[data-panel="${name}"] input, [data-panel="${name}"] button`)?.focus();
   }
@@ -249,8 +332,8 @@
   /* ===== início ===== */
   show('login');
   if (!client) {
-    document.querySelectorAll('[data-panel] input, [data-panel] .btn, .auth-tabs button').forEach((el) => { el.disabled = true; });
-    say('O Supabase não está configurado neste computador (falta o arquivo supabase-config.js). Você ainda pode usar o app sem conta.', 'warn');
+    document.querySelectorAll('[data-panel]:not([data-demo]) input, [data-panel]:not([data-demo]) .btn, .auth-tabs button').forEach((el) => { el.disabled = true; });
+    say('O Supabase não está configurado neste computador, então o login por e-mail está desligado. Use o ID de acesso, os outros perfis ou continue sem conta.', 'warn');
     return;
   }
   const linkError = urlHash.get('error_description');
