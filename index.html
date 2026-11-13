@@ -12,6 +12,12 @@
   <main class="auth-main">
     <div class="auth-box">
       <h1 class="logo auth-logo">Educa<b>Mente</b> <i>AI</i></h1>
+      <div class="auth-roles" role="group" aria-label="Entrar como">
+        <button type="button" data-role="professor" aria-pressed="true">Professor</button>
+        <button type="button" data-role="aluno" aria-pressed="false">Aluno</button>
+        <button type="button" data-role="responsavel" aria-pressed="false">Responsável</button>
+        <button type="button" data-role="coordenacao" aria-pressed="false">Coordenação</button>
+      </div>
       <div class="auth-tabs" role="tablist" aria-label="Acesso">
         <button type="button" role="tab" id="tabLogin" aria-controls="panelLogin" aria-selected="true" data-tab="login">Entrar</button>
         <button type="button" role="tab" id="tabSignup" aria-controls="panelSignup" aria-selected="false" data-tab="signup">Criar conta</button>
@@ -28,6 +34,37 @@
           <div class="pw"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" class="pw-toggle" data-toggle="loginPassword" aria-pressed="false">Mostrar</button></div>
         </div>
         <button class="btn block" type="submit" data-busy="Entrando…">Entrar</button>
+        <p class="back"><button type="button" class="link" data-go="professorId">Entrar com o ID de acesso da coordenação</button></p>
+      </form>
+
+      <form data-panel="professorId" data-demo="professor" hidden>
+        <h2>Entrar como professor</h2>
+        <p class="lead">Use o ID de acesso liberado pela coordenação da escola.</p>
+        <div class="field"><label for="prId">ID de acesso</label><input id="prId" data-cred="id" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="PRF-XXXX" required maxlength="20"></div>
+        <button class="btn block" type="submit">Entrar</button>
+        <p class="back"><button type="button" class="link" data-go="login">Entrar com e-mail e senha</button></p>
+      </form>
+
+      <form data-panel="aluno" data-demo="aluno" hidden>
+        <h2>Entrar como aluno</h2>
+        <p class="lead">Use o ID de acesso que a coordenação enviou para o seu e-mail na matrícula.</p>
+        <div class="field"><label for="alId">ID de acesso</label><input id="alId" data-cred="id" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="ALU-XXXX" required maxlength="20"></div>
+        <button class="btn block" type="submit">Entrar</button>
+      </form>
+
+      <form data-panel="responsavel" data-demo="responsavel" hidden>
+        <h2>Entrar como responsável</h2>
+        <p class="lead">Informe o nome completo do aluno e o número de matrícula dele.</p>
+        <div class="field"><label for="rsNome">Nome completo do aluno</label><input id="rsNome" data-cred="nome" autocomplete="off" required maxlength="160"></div>
+        <div class="field"><label for="rsMat">Número de matrícula</label><input id="rsMat" data-cred="matricula" inputmode="numeric" autocomplete="off" required maxlength="20"></div>
+        <button class="btn block" type="submit">Entrar</button>
+      </form>
+
+      <form data-panel="coordenacao" data-demo="coordenacao" hidden>
+        <h2>Entrar como coordenação</h2>
+        <p class="lead">Use a sua chave de acesso da coordenação.</p>
+        <div class="field"><label for="coChave">Chave de acesso</label><input id="coChave" data-cred="id" type="password" autocomplete="current-password" autocapitalize="characters" spellcheck="false" required maxlength="40"></div>
+        <button class="btn block" type="submit">Entrar</button>
       </form>
 
       <form id="panelSignup" data-panel="signup" role="tabpanel" aria-labelledby="tabSignup" hidden>
@@ -90,10 +127,18 @@
         <p><b>Só quer conhecer?</b> Os dados ficam salvos apenas neste navegador.</p>
         <button type="button" class="btn s" id="localBtn">Continuar sem conta</button>
       </div>
-      <p class="auth-note">Versão de testes: use apenas nomes e notas fictícios.</p>
+      <details class="demo-acc" id="demoAcc">
+        <summary>Acessos de demonstração</summary>
+        <p class="hint">Escolha um acesso para preencher o formulário. Os dados são fictícios e ficam só neste navegador.</p>
+        <ul id="demoList"></ul>
+        <button type="button" class="link" id="demoReset">Restaurar os dados de demonstração</button>
+      </details>
+      <p class="auth-note">Versão de demonstração: use apenas nomes e notas fictícios.</p>
     </div>
   </main>
 </div>
+<script src="escola-core.js"></script>
+<script src="escola-store.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="supabase-client.js"></script>

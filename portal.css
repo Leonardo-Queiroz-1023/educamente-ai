@@ -1,0 +1,118 @@
+/* Portal da escola (MVP). Reutiliza tokens e componentes de styles.css. */
+[hidden]{display:none!important}
+.portal ::selection{background:var(--pr);color:var(--prt)}
+.portal{scrollbar-color:color-mix(in srgb,var(--mt) 45%,transparent) transparent}
+.portal main:focus{outline:none}
+
+/* Cabeçalho */
+header .ib0{display:grid;place-items:center}
+header .ib0 svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+header .ib0.txt{width:auto;padding:0 12px;font-size:14px;font-weight:600}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.av-i{width:32px;height:32px;flex:none;border-radius:50%;background:var(--pr);color:var(--prt);display:grid;place-items:center;font-weight:700}
+.who-t{display:grid;line-height:1.25;min-width:0}
+.who-t b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.who-t small{font-size:12px;color:var(--mt);white-space:nowrap}
+
+/* Menu lateral com ícones desenhados */
+aside button span:first-child{display:grid;place-items:center}
+aside svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav-note{margin:14px 8px 0;padding:10px 12px;border-radius:10px;background:var(--wns);color:var(--tx);font-size:12px;line-height:1.45}
+.collapsed .nav-note{display:none}
+
+/* Texto auxiliar */
+.hint{display:block;margin:8px 0 0;font-size:12px;color:var(--mt)}
+.legend{margin:12px 0 0;font-size:13px;color:var(--mt);line-height:1.8}
+.legend .chip{margin:0 2px 0 6px}.legend .chip:first-child{margin-left:0}
+.small{font-size:12px}
+.mono,code{font-family:ui-monospace,"Cascadia Mono","Segoe UI Mono",Consolas,monospace;font-size:13px;letter-spacing:.02em}
+code{background:var(--prs);color:var(--pr);padding:1px 6px;border-radius:5px}
+.top h1{letter-spacing:-.015em}
+
+/* Tabelas */
+table.num td,table.num th{font-variant-numeric:tabular-nums}
+table.num td:not(:first-child),table.num th:not(:first-child){text-align:center}
+tfoot th{color:var(--tx);font-size:14px;border-bottom:0;border-top:2px solid var(--bd)}
+table.compact{min-width:0}
+table.compact td,table.compact th{padding:7px 8px;vertical-align:middle}
+th small{font-weight:400}
+tr.detail>td{background:var(--bg);padding:14px 16px}
+tr.detail textarea{min-height:60px}
+
+/* Listas clicáveis */
+.list{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.row-link{all:unset;box-sizing:border-box;cursor:pointer;display:grid;gap:1px;width:100%;padding:9px 10px;margin:0 -10px;border-radius:9px;width:calc(100% + 20px)}
+.row-link:hover{background:var(--prs)}
+.row-link:focus-visible{outline:2px solid var(--pr);outline-offset:-2px}
+.row-link.static{cursor:default}.row-link.static:hover{background:none}
+.row-link b{font-weight:600}
+.row-link span{font-size:13px;color:var(--mt)}
+.row-link em{font-style:normal;color:var(--wn);font-weight:600}
+
+/* Botões compactos */
+.btn.sm{padding:5px 10px;font-size:13px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Questões (responder e ver correção) */
+.q{padding:14px 0;border-bottom:1px solid var(--bd)}
+.q:first-child{padding-top:0}.q:last-of-type{border-bottom:0}
+fieldset.q{padding:0 0 14px;margin:0 0 14px}
+fieldset.q legend{font-size:14px;color:var(--tx);margin-bottom:6px}
+.q-st{margin:0 0 10px;font-size:15px;max-width:72ch}
+.q p{margin:4px 0}
+.q-fb{color:var(--tx);max-width:72ch}
+.q textarea{min-height:110px}
+
+/* Ocorrências */
+.occ{list-style:none;margin:0;padding:0}
+.occ li{padding:12px 0;border-bottom:1px solid var(--bd)}.occ li:last-child{border-bottom:0}
+.occ-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:14px}
+.occ-h span:not(.chip){color:var(--mt)}
+.occ p{margin:6px 0 0;max-width:75ch}
+
+/* Plano anual */
+.plan{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.plan .card{margin:0}
+.plan .card.now{border-color:var(--pr);box-shadow:0 0 0 1px var(--pr),var(--sh)}
+.plan ul{margin:0;padding-left:18px;font-size:14px}.plan li{margin:4px 0}
+.plan h2 .chip{margin-left:6px;vertical-align:1px}
+
+/* Credenciais geradas */
+.cred{border-color:var(--sc)}
+.cred .kv{margin:10px 0 0}
+.cred p{margin:0}
+
+/* Chamada: P / F / FJ */
+table.call{min-width:0}
+table.call td{vertical-align:middle}
+.seg{display:inline-flex;gap:4px}
+.seg label{margin:0;cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg span{display:inline-grid;place-items:center;min-width:44px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--bd);font-weight:700;font-size:13px;color:var(--mt);background:var(--sf);transition:background-color var(--fast) var(--ease),border-color var(--fast) var(--ease),color var(--fast) var(--ease)}
+.seg label:hover span{border-color:var(--mt)}
+.seg input:focus-visible+span{outline:2px solid var(--pr);outline-offset:2px}
+.seg-P input:checked+span{background:var(--scs);border-color:var(--sc);color:var(--sc)}
+.seg-F input:checked+span{background:var(--bads);border-color:var(--bad);color:var(--bad)}
+.seg-FJ input:checked+span{background:var(--wns);border-color:var(--wn);color:var(--wn)}
+
+/* Editor de atividade */
+.qed-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 12px}
+.alt{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:center;margin-bottom:6px}
+.alt input[type=radio]{width:auto;accent-color:var(--sc);margin:0}
+.alt b{font-size:14px}
+.publish{padding:14px 0 8px;border-top:1px solid var(--bd);margin-top:18px}
+
+/* Relatório */
+.qerr details{border-bottom:1px solid var(--bd)}
+.qerr summary{font-size:14px}
+
+@media(max-width:900px){
+  .who-t{display:none}
+  body.open aside{transform:none;box-shadow:0 8px 24px rgba(10,20,40,.18)}
+}
+@media(max-width:600px){
+  .stats{grid-template-columns:1fr 1fr}
+  .top{flex-direction:column}
+  .top .flt{width:100%}.top .flt>*{max-width:none}
+  .seg span{min-width:40px}
+}

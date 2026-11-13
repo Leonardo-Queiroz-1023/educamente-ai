@@ -292,7 +292,7 @@ function anResultHtml(){
  ${a.attention_points.length?`<h2 class="h-sec">Pontos de atenção</h2><ul>${a.attention_points.map(p=>`<li>${named(p,L)}</li>`).join("")}</ul>`:""}
  <h2 class="h-sec">Recomendações</h2><ul>${a.recommendations.map(x=>`<li>${named(x.text,L)}<br><span class="muted" style="font-size:13px">Evidência: ${named(x.evidence,L)}</span></li>`).join("")}</ul>
  ${r.suggested_complexity?`<p class="note">Os dados sugerem <b>${LEVEL[r.suggested_complexity][0]}</b> para uma atividade em <b>${esc(r.focus_content||"")}</b>. É só uma sugestão: você escolhe o nível.</p>`:""}
- <button class="btn g" data-act="aiGen:analysis">Gerar atividade com IA</button>
+ <div class="row-act"><button class="btn g" data-act="aiGen:analysis">Gerar atividade com IA</button><button class="btn s" data-act="anPrint">Imprimir relatório</button><button class="btn s" data-act="anDownload">Baixar relatório (Word)</button></div>
  <p class="muted" style="font-size:12px;margin:12px 0 0">Análise gerada com IA a partir dos resultados registrados e salva no histórico da turma. Revise antes de usar.</p></div>
  <div class="card"><h2>Evidências utilizadas</h2>
  <div class="stats">${[["Aproveitamento médio",fmt(ev.overall_mean)],["Avaliações",ev.assessment_count],["Resultados",ev.result_count],["Abaixo de 50%",`${ev.students_below_threshold} de ${ev.students_with_results}`]].map(([l,v])=>`<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>
@@ -397,10 +397,37 @@ function valHtml(v){if(!v)return"";
  const probs=[...(v.structural_issues||[]).map(i=>i.message),...((v.review&&v.review.issues)||[]).map(i=>(i.question?`Questão ${i.question}: `:"")+i.problem)];
  return v.passed?`<p class="note">Validação automática: estrutura, gabarito e conteúdo conferidos.${probs.length?` Observações: ${probs.map(esc).join(" ")}`:""}</p>`
   :`<div class="warnbox"><b>A validação automática apontou pontos para revisar antes de aprovar:</b><ul>${probs.map(p=>`<li>${esc(p)}</li>`).join("")}</ul></div>`}
+/* ===== imprimir e baixar (print-doc.js): atividades da IA e relatório da análise ===== */
+const PR=window.EducaPrint;
+const escolaNome=()=>{const t=($("escola")?.textContent||"").trim();return t&&t!=="Escola"?t:""};
+function aiDoc(id,kind){const a=Svc.get("atividades",id);if(!a)return null;const ia=a.ia||{},E=PR.esc,escola=escolaNome();
+ const meta=[["Turma",nm("turmas",a.turmaId)],["Disciplina",a.componente],["Conteúdo",a.conteudo]];
+ const folha=PR.identificacao()+(a.instrucoes?`<div class="box"><b>Instruções:</b> ${E(a.instrucoes)}</div>`:"")
+  +((ia.worked_examples||[]).length?"<h2>Exemplos resolvidos</h2>"+ia.worked_examples.map(w=>`<div class="q"><p><b>${E(w.problem)}</b></p><p style="white-space:pre-wrap">${E(w.solution)}</p></div>`).join(""):"")
+  +"<h2>Questões</h2>"+(ia.questions||[]).map(q=>`<div class="q"><p><span class="q-n">${E(q.number)}.</span> ${E(q.statement)}</p>${q.options?.length?`<ol>${q.options.map(o=>`<li>${E(o)}</li>`).join("")}</ol>`:PR.linhas(4)}</div>`).join("");
+ const gab="<h2>Gabarito</h2>"+(ia.answer_key||[]).map(k=>`<p><b>${E(k.question)}.</b> ${E(k.answer)}${k.explanation?`<br><span class="muted">${E(k.explanation)}</span>`:""}</p>`).join("")
+  +(ia.teacher_guidance?`<h2>Orientação ao professor</h2><p style="white-space:pre-wrap">${E(ia.teacher_guidance)}</p>`:"")
+  +(a.objetivo||a.habilidade?`<h2>Objetivo e habilidade</h2><p>${E(a.objetivo||"")}${a.habilidade?`<br><span class="muted">Habilidade: ${E(a.habilidade)}</span>`:""}</p>`:"")
+  +(ia.justification?`<h2>Por que esta atividade</h2><p style="white-space:pre-wrap">${E(ia.justification)}</p>`:"");
+ const situacao=a.status==="draft"?[["Situação","rascunho não aprovado"]]:[];
+ if(kind==="aluno")return{title:a.titulo,escola,meta,body:folha,rodape:"Atividade elaborada com apoio do EducaMente AI e revisada pelo professor."};
+ if(kind==="professor")return{title:a.titulo+": gabarito e orientações",escola,meta:[...meta,...situacao],body:gab};
+ return{title:a.titulo,escola,meta:[...meta,...situacao],body:folha+'<div class="page-break"></div><h1>Gabarito e orientações ao professor</h1>'+gab}}
+function anDoc(){const r=AN.result;if(!r||r.status!=="ok")return null;const L=legendOf(r.students),ev=r.evidence,a=r.analysis,E=PR.esc,N=t=>named(t,L);
+ const av=AN.avaliacao&&Svc.get("avaliacoes",AN.avaliacao);
+ const body=`<table class="stats"><tr>${[["Aproveitamento médio",fmt(ev.overall_mean)],["Avaliações",ev.assessment_count],["Resultados",ev.result_count],["Abaixo de 50%",`${ev.students_below_threshold} de ${ev.students_with_results}`]].map(([l,v])=>`<td><b>${E(v)}</b>${E(l)}</td>`).join("")}</tr></table>
+ <h2>Resumo</h2><p>${N(a.summary)}</p>
+ ${a.attention_points.length?`<h2>Pontos de atenção</h2><ul>${a.attention_points.map(p=>`<li>${N(p)}</li>`).join("")}</ul>`:""}
+ <h2>Recomendações</h2><ol>${a.recommendations.map(x=>`<li>${N(x.text)}<br><span class="muted">Evidência: ${N(x.evidence)}</span></li>`).join("")}</ol>
+ <h2>Aproveitamento por conteúdo</h2><table><tr><th>Conteúdo</th><th class="n">Média</th></tr>${ev.by_content.filter(c=>c.mean!=null).map(c=>`<tr><td>${E(c.label)}</td><td class="n">${fmt(c.mean)}</td></tr>`).join("")}</table>
+ <h2>Por estudante</h2><table><tr><th>Estudante</th><th class="n">Aproveitamento</th><th class="n">Resultados</th></tr>${ev.students.map(s=>`<tr><td>${E(L[s.code]||s.code)}</td><td class="n">${fmt(s.mean)}</td><td class="n">${E(s.results)}</td></tr>`).join("")}</table>
+ <h2>Evolução</h2>${ev.evolution.comparable?ev.evolution.groups.map(g=>g.steps.map(st=>`<p>${E(g.content)}: ${E(st.from.title)} (${fmt(st.from.mean)}) → ${E(st.to.title)} (${fmt(st.to.mean)}), ${st.class_delta>0?"+":""}${String(st.class_delta).replace(".",",")} pontos.</p>`).join("")).join(""):`<p class="muted">${E(ev.evolution.note)}</p>`}`;
+ return{title:"Relatório de análise pedagógica",escola:escolaNome(),meta:[["Turma",nm("turmas",AN.turma)],["Avaliação",av?.nome],["Conteúdo",AN.conteudo],["Data",new Date().toLocaleDateString("pt-BR")]],body,rodape:"Análise gerada com IA a partir dos resultados registrados no EducaMente AI. Revise antes de usar."}}
 function aiPreview(id){const a=Svc.get("atividades",id);if(!a)return toast("Atividade não encontrada. Recarregue a página.");
  const ia=a.ia||{},meta=ia.generation_metadata||{},extra=AI_LAST[id],draft=a.status==="draft",ops=extra?.operations||meta.operations;
  openM(`<h2 style="font-size:18px">${esc(a.titulo)}</h2>
  <p>${draft?'<span class="chip wn">Rascunho gerado com IA — aguardando sua revisão</span>':`<span class="chip ok">Aprovada${ia.approved_at?" em "+dt(ia.approved_at.slice(0,10)):""}</span>`}</p>
+ <div class="row-act print-row" role="group" aria-label="Imprimir ou baixar"><button class="btn s" data-act="aiPrint:${a.id}:aluno">Imprimir para os alunos</button><button class="btn s" data-act="aiPrint:${a.id}:professor">Imprimir gabarito</button><button class="btn s" data-act="aiDownload:${a.id}">Baixar (Word)</button>${draft?'<span class="muted">Ainda é rascunho: revise antes de entregar aos alunos.</span>':""}</div>
  <dl class="kv"><dt>Turma</dt><dd>${esc(nm("turmas",a.turmaId))}</dd><dt>Disciplina</dt><dd>${esc(a.componente||"—")}</dd><dt>Conteúdo</dt><dd>${esc(a.conteudo)}</dd><dt>Objetivo</dt><dd>${esc(a.objetivo)}</dd><dt>Habilidade</dt><dd>${esc(a.habilidade||"—")}</dd><dt>Público-alvo</dt><dd>${esc(TARGET[ia.target_group]||"—")}</dd><dt>Nível</dt><dd>${esc(LEVEL[ia.complexity]?.[0]||"—")}</dd><dt>Tipo</dt><dd>${esc(a.tipo)}</dd></dl>
  ${sec("Instruções",`<p style="white-space:pre-wrap;margin:0">${esc(a.instrucoes)}</p>`)}
  ${(ia.worked_examples||[]).length?sec("Exemplos resolvidos",ia.worked_examples.map(w=>`<div class="aiq"><p style="margin:0 0 4px"><b>${esc(w.problem)}</b></p><p class="muted" style="white-space:pre-wrap;margin:0">${esc(w.solution)}</p></div>`).join("")):""}
@@ -455,7 +482,7 @@ async function aiHealth(){try{const r=await fetch(AGENT_URL+"/api/health");const
 const NAV=[["dashboard","Dashboard","▦"],["turmas","Turmas","⌂"],["alunos","Alunos","☺"],["avaliacoes","Avaliações","✔"],["analise","Análise pedagógica","◎"],["atividades","Atividades","✎"],["planejamentos","Planejamento pedagógico","☷"],["historico","Histórico","↺"],["configuracoes","Configurações","⚙"]];
 let view="dashboard";
 function render(){const v=NAV.some(n=>n[0]===view)?view:"dashboard";
- $("nav").innerHTML=NAV.map(([k,l,i])=>`<button class="${k===v?"on":""}" data-act="go:${k}"><span>${i}</span><span>${l}</span></button>`).join("");
+ $("nav").innerHTML=NAV.map(([k,l,i])=>`<button class="${k===v?"on":""}" data-act="go:${k}"><span>${i}</span><span>${l}</span></button>`).join("")+`<a class="portal-link" href="portal.html?entrar=professor"><span>⇄</span><span>Sala de aula: chamada e atividades</span></a>`;
  $("nb").textContent=notifs().length||"";$("escola").textContent=DB.turmas[0]?.escola||window.educamenteSync?.state?.schoolName||"Escola";
  const professor=window.educamenteSync?.state?.teacher?.name||"Professor";
  if($("profileName"))$("profileName").textContent=professor;
@@ -482,6 +509,10 @@ const ACT={
  // Atividades geradas com IA abrem a revisão própria (questões estruturadas, aprovação).
  view:(m,id)=>m==="atividades"&&Svc.get(m,id)?.origem==="ai"?aiPreview(id):viewM(m,id),
  edit:(m,id)=>m==="atividades"&&Svc.get(m,id)?.origem==="ai"?aiEditM(id):formM(m,id),
+ aiPrint:(id,kind)=>{const d=aiDoc(id,kind);d?PR.print(d):toast("Atividade não encontrada.")},
+ aiDownload:id=>{const d=aiDoc(id,"completo");if(!d)return toast("Atividade não encontrada.");PR.download(d);toast("Arquivo baixado: folha do aluno e, na página seguinte, o gabarito.")},
+ anPrint:()=>{const d=anDoc();d?PR.print(d):toast("Faça uma análise antes de imprimir.")},
+ anDownload:()=>{const d=anDoc();if(!d)return toast("Faça uma análise antes de baixar.");PR.download(d,"relatorio-analise-"+nm("turmas",AN.turma));toast("Relatório baixado.")},
  anRun,anHist,aiGenRun,aiHealth,aiEdit:aiEditM,aiSave,aiApprove,aiRegen,aiBack:id=>aiPreview(id),
  aiGen:src=>src==="analysis"?aiGenFromAnalysis():aiGenM(),
  aiOpen:uuid=>aiPreview(lid("atividades",uuid)),
