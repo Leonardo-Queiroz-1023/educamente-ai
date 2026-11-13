@@ -3,7 +3,7 @@ import { createProvider } from "../../../../src/lib/ai";
 import { runGeneration } from "../../../../src/lib/agent/tasks";
 import { ACTIVITY_TYPES, COMPLEXITIES, TARGET_GROUPS } from "../../../../src/lib/domain/activity";
 import { DEMO_TEACHER_ID, SnapshotSchema, requireDemo, snapshotRepository } from "../../../../src/lib/demo";
-import { json, preflight, readJson, route } from "../../../../src/lib/http";
+import { preflight, readJson, respond, route } from "../../../../src/lib/http";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -29,9 +29,9 @@ export const POST = route(async (req: Request) => {
   requireDemo(req);
   const body = await readJson(req, Body);
   const { repo, classInfo } = snapshotRepository(body.snapshot);
-  const outcome = await runGeneration(
+  return respond(req, 201, async (emit) => ({ ...(await runGeneration(
     // A análise de referência vive só no navegador: não é ligada por chave estrangeira aqui.
-    { repo, teacherId: DEMO_TEACHER_ID, classInfo, provider: createProvider },
+    { repo, teacherId: DEMO_TEACHER_ID, classInfo, provider: createProvider, emit },
     {
       kind: "generation",
       classId: classInfo.id,
@@ -48,8 +48,7 @@ export const POST = route(async (req: Request) => {
       analysisId: body.analysis_id,
       regenerateOf: body.regenerate_of,
     },
-  );
-  return json(req, { ...outcome, demo: true }, 201);
+  )), demo: true }));
 });
 
 export const OPTIONS = (req: Request) => preflight(req);

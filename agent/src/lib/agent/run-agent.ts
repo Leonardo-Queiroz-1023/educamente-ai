@@ -5,6 +5,7 @@
 import { AppError, ToolInputError } from "../errors";
 import type { ToolResult } from "../ai/provider";
 import type { RunContext } from "./context";
+import { TOOL_LABELS } from "./events";
 import { toToolSpec, type AgentTool } from "./tools";
 
 const MAX_ITERATIONS = 16;
@@ -12,6 +13,8 @@ const MAX_ITERATIONS = 16;
 export async function runAgent(ctx: RunContext, opts: { system: string; userMessage: string; tools: AgentTool[] }): Promise<string> {
   const byName = new Map(opts.tools.map((t) => [t.name, t]));
   const session = ctx.provider.startSession({ system: opts.system, tools: opts.tools.map(toToolSpec) });
+  const thinking = () => ctx.emit({ type: "status", phase: "thinking", label: "Pensando no próximo passo" });
+  thinking();
   let turn = await session.send(opts.userMessage);
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -39,6 +42,7 @@ export async function runAgent(ctx: RunContext, opts: { system: string; userMess
         continue;
       }
       try {
+        ctx.emit({ type: "status", phase: "tool", tool: call.name, label: TOOL_LABELS[call.name] ?? call.name });
         const out = await tool.run(ctx, parsed.data);
         results.push({ id: call.id, content: JSON.stringify(out) });
       } catch (error) {
@@ -51,6 +55,7 @@ export async function runAgent(ctx: RunContext, opts: { system: string; userMess
         throw error;
       }
     }
+    thinking();
     turn = await session.sendToolResults(results);
   }
   throw new AppError("AGENT_INCOMPLETE", "A IA não concluiu a tarefa no número de passos permitido. Tente de novo.");

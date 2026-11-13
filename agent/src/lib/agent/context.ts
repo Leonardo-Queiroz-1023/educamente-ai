@@ -4,6 +4,7 @@ import type { ActivityDraft, Complexity, TargetGroup, ValidationIssue } from "..
 import type { PerformanceAnalysis } from "../domain/analytics";
 import type { InterventionPlan } from "../domain/plan";
 import type { Pseudonymizer } from "../domain/pseudonyms";
+import { noEmit, type EmitFn } from "./events";
 
 export interface AnalysisRequest {
   kind: "analysis";
@@ -74,9 +75,12 @@ export class RunContext {
     readonly pseudo: Pseudonymizer,
     readonly studentCount: number,
     readonly request: AnalysisRequest | GenerationRequest,
+    /** Recebe o progresso em tempo real (painel "a IA está pensando"). */
+    readonly emit: EmitFn = noEmit,
   ) {}
 
   log(line: string): void {
     this.operations.push(line);
+    this.emit({ type: "step", text: line });
   }
 }

@@ -12,6 +12,7 @@ import { RunContext, type AnalysisRequest, type GenerationRequest } from "./cont
 import { ANALYSIS_SYSTEM, GENERATION_SYSTEM, analysisUserMessage, generationUserMessage } from "./prompts";
 import { runAgent } from "./run-agent";
 import { ANALYSIS_TOOLS, GENERATION_TOOLS } from "./tools";
+import { noEmit, type EmitFn } from "./events";
 
 export interface TaskDeps {
   repo: DataRepository;
@@ -19,6 +20,8 @@ export interface TaskDeps {
   classInfo: ClassInfo;
   /** Criado só quando a IA é realmente necessária (sem dados, nenhuma chamada é feita). */
   provider: () => AiProvider;
+  /** Progresso em tempo real (opcional). Sem ele, nada muda na resposta final. */
+  emit?: EmitFn;
 }
 
 export interface AnalysisOutcome {
@@ -47,6 +50,7 @@ export interface GenerationOutcome {
 }
 
 async function setup(deps: TaskDeps) {
+  (deps.emit ?? noEmit)({ type: "status", phase: "checking", label: "Conferindo os dados da turma" });
   const students = await deps.repo.listStudents(deps.classInfo.id);
   return { pseudo: new Pseudonymizer(students.map((s) => s.id)), studentCount: students.length };
 }
@@ -78,7 +82,7 @@ export async function runAnalysis(deps: TaskDeps, req: AnalysisRequest): Promise
     };
   }
 
-  const ctx = new RunContext(deps.repo, deps.provider(), deps.teacherId, deps.classInfo, pseudo, studentCount, req);
+  const ctx = new RunContext(deps.repo, deps.provider(), deps.teacherId, deps.classInfo, pseudo, studentCount, req, deps.emit);
   await runAgent(ctx, { system: ANALYSIS_SYSTEM, userMessage: analysisUserMessage(req, deps.classInfo.name), tools: ANALYSIS_TOOLS });
 
   if (!ctx.savedAnalysis || !ctx.performance) {
@@ -125,7 +129,7 @@ export async function runGeneration(
   }
 
   const fullReq: GenerationRequest = { ...req, studentCodes: req.studentIds.map((id) => pseudo.code(id)) };
-  const ctx = new RunContext(deps.repo, deps.provider(), deps.teacherId, deps.classInfo, pseudo, studentCount, fullReq);
+  const ctx = new RunContext(deps.repo, deps.provider(), deps.teacherId, deps.classInfo, pseudo, studentCount, fullReq, deps.emit);
   await runAgent(ctx, {
     system: GENERATION_SYSTEM,
     userMessage: generationUserMessage(fullReq, deps.classInfo.name, deps.classInfo.grade),

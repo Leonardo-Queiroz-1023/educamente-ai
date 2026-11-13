@@ -222,12 +222,41 @@ async function agentFetch(path,opts={}){
   if(sync?.state?.dirty)throw new Error("Há alterações que ainda não chegaram à nuvem. Verifique a conexão e tente de novo.");
   headers.Authorization="Bearer "+session.access_token;
  }else if(!AI_DEMO)throw new Error("Entre com sua conta para usar a IA.");
+ // Com onEvent, o agente transmite o progresso real (NDJSON) enquanto trabalha.
+ if(opts.onEvent)headers.Accept="application/x-ndjson";
  let r;
  try{r=await fetch(AGENT_URL+path,{method:opts.method||"GET",headers,body:opts.body?JSON.stringify(opts.body):undefined})}
  catch(e){throw Object.assign(new Error(`O serviço de IA não respondeu em ${AGENT_URL}. Confira se ele está rodando (npm run dev na pasta agent).`),{retryable:true})}
+ if(opts.onEvent&&r.ok&&r.body&&(r.headers.get("content-type")||"").includes("ndjson"))return readAgentStream(r,opts.onEvent);
  const j=await r.json().catch(()=>({}));
  if(!r.ok)throw Object.assign(new Error(j.error?.message||`Erro ${r.status} no serviço de IA.`),{code:j.error?.code,retryable:j.error?.retryable,details:j.error?.details});
  return j}
+
+/* Lê a resposta transmitida: eventos de progresso, depois o resultado (ou o erro) com o mesmo corpo do JSON de sempre. */
+async function readAgentStream(r,onEvent){const rd=r.body.getReader(),dec=new TextDecoder();let buf="",end=null;
+ const handle=line=>{if(!line.trim())return;let ev;try{ev=JSON.parse(line)}catch{return}
+  if(ev.type==="result")end={data:ev.data};else if(ev.type==="error")end={error:ev.error||{},status:ev.status};else try{onEvent(ev)}catch{}};
+ try{for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf("\n"))>=0){handle(buf.slice(0,i));buf=buf.slice(i+1)}}handle(buf+dec.decode())}
+ catch{end=null}
+ if(end?.error)throw Object.assign(new Error(end.error.message||`Erro ${end.status} no serviço de IA.`),{code:end.error.code,retryable:end.error.retryable,details:end.error.details});
+ if(!end)throw Object.assign(new Error("A conexão com o serviço de IA caiu antes do fim. Confira o histórico antes de tentar de novo: o resultado pode ter sido salvo."),{retryable:true});
+ return end.data}
+
+/* ===== painel "a IA está trabalhando": mostra só o que o agente informa em tempo real ===== */
+const THINK={};let thinkTimer=null;
+const mmss=ms=>{const s=Math.max(0,Math.floor(ms/1000));return`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`};
+const THINK_MARK=`<svg class="think-mark" viewBox="0 0 24 24" aria-hidden="true"><circle class="orbit" cx="12" cy="12" r="10.5"/><path class="spark" fill="currentColor" d="M12 3.2c.7 4.6 4.2 8.1 8.8 8.8-4.6.7-8.1 4.2-8.8 8.8-.7-4.6-4.2-8.1-8.8-8.8 4.6-.7 8.1-4.2 8.8-8.8Z"/></svg>`;
+const thinkLi=t=>`<li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l2.9 2.9 6.1-6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(t)}</span></li>`;
+function thinkStart(key){THINK[key]={t0:Date.now(),label:"Conectando ao serviço de IA",phase:"checking",steps:[]};
+ if(!thinkTimer)thinkTimer=setInterval(()=>{const ks=Object.keys(THINK);if(!ks.length){clearInterval(thinkTimer);thinkTimer=null;return}
+  ks.forEach(k=>{const el=document.querySelector(`#think-${k} .think-time`);if(el)el.textContent=mmss(Date.now()-THINK[k].t0)})},1000);
+ return ev=>{const s=THINK[key];if(!s)return;const box=document.getElementById("think-"+key);
+  if(ev.type==="step"){s.steps.push(ev.text);box?.querySelector(".think-steps")?.insertAdjacentHTML("beforeend",thinkLi(ev.text))}
+  else if(ev.type==="status"){s.label=ev.label;s.phase=ev.phase;const n=box?.querySelector(".think-now");if(n){n.textContent=ev.label;n.dataset.phase=ev.phase}}}}
+const thinkEnd=key=>{delete THINK[key]};
+function thinkHtml(key,hint){const s=THINK[key];if(!s)return"";
+ return`<section class="think" id="think-${key}" aria-label="Progresso da IA"><div class="think-head">${THINK_MARK}<div class="think-title"><b>A IA está trabalhando</b><span class="think-now" data-phase="${esc(s.phase)}">${esc(s.label)}</span></div><span class="think-time" aria-hidden="true">${mmss(Date.now()-s.t0)}</span></div>
+ <ol class="think-steps" aria-live="polite" aria-label="Etapas concluídas">${s.steps.map(thinkLi).join("")}</ol>${hint?`<p class="think-hint">${hint}</p>`:""}</section>`}
 
 /* Nomes de estudantes ficam só no navegador: a IA trabalha com códigos (E1, E2...). */
 const nameOfStudent=uuid=>DB.alunos.find(a=>a.id===lid("alunos",uuid))?.nome;
@@ -249,11 +278,12 @@ function anView(){
   <div><label for="anT">Turma</label><select id="anT" data-an="turma">${turmaO().map(([a,b])=>`<option value="${esc(a)}" ${a===AN.turma?"selected":""}>${esc(b)}</option>`).join("")}</select></div>
   <div><label for="anA">Avaliação</label><select id="anA" data-an="avaliacao"><option value="">Todas</option>${avs.map(a=>`<option value="${esc(a.id)}" ${a.id===AN.avaliacao?"selected":""}>${esc(a.nome)} (${dt(a.data)})</option>`).join("")}</select></div>
   <div><label for="anC">Conteúdo</label><select id="anC" data-an="conteudo"><option value="">Todos</option>${conts.map(c=>`<option value="${esc(c)}" ${c===AN.conteudo?"selected":""}>${esc(c)}</option>`).join("")}</select></div></div>
-  <div class="row-act"><button class="btn" data-act="anRun" ${AN.busy||!aiOn()?"disabled":""}>${AN.busy?"Analisando…":"Analisar aprendizagem com IA"}</button>${AN.busy?`<span class="muted" role="status">A IA está consultando e analisando os resultados. Pode levar até um minuto.</span>`:""}</div></div>
+  <div class="row-act"><button class="btn" data-act="anRun" ${AN.busy||!aiOn()?"disabled":""}>${AN.busy?"Analisando…":"Analisar aprendizagem com IA"}</button></div></div>
  <div id="anOut" aria-live="polite">${anResultHtml()}</div>
  <div class="card"><div class="top" style="margin-bottom:8px"><h2 style="margin:0">Análises anteriores</h2><button class="btn s" data-act="anHist" ${aiOn()?"":"disabled"}>${AN.history?"Atualizar":"Carregar histórico"}</button></div>${anHistHtml()}</div>`}
 
 function anResultHtml(){
+ if(AN.busy)return`<div class="card">${thinkHtml("an","Costuma levar até um minuto. A IA recebe só códigos (E1, E2…), nunca os nomes dos alunos.")}</div>`;
  if(AN.error)return`<div class="card"><h2>Não foi possível concluir a análise</h2><p class="err" style="font-size:14px">${esc(AN.error.message)}</p><p class="muted" style="font-size:13px">Nenhum registro foi alterado.</p>${AN.error.retryable!==false?`<button class="btn s" data-act="anRun">Tentar novamente</button>`:""}</div>`+opsHtml(AN.error.details?.operations);
  const r=AN.result;if(!r)return"";
  if(r.status==="insufficient_data")return`<div class="card"><h2>Dados insuficientes</h2><p style="margin:0">${esc(r.message)}</p></div>`+opsHtml(r.operations);
@@ -279,19 +309,20 @@ function anHistHtml(){const h=AN.history;
  (h.activities.length?`<h2 class="h-sec">Atividades geradas com IA</h2>`+mini(h.activities,x=>`<tr><td style="white-space:nowrap">${dt(x.created_at.slice(0,10))}</td><td>${esc(x.title)}</td><td>${statusChip(x.status)}</td><td><button class="ib" data-act="aiOpen:${esc(x.id)}">Abrir</button></td></tr>`):"")}
 
 async function anRun(){if(AN.busy)return;
+ const onEvent=thinkStart("an");
  AN.busy=true;AN.error=null;AN.result=null;render();
  try{const a=AN.avaliacao&&Svc.get("avaliacoes",AN.avaliacao);
   const filters={...(a?{assessment_id:rid("avaliacoes",a.id)}:{}),...(AN.conteudo?{content:AN.conteudo}:{})};
   AN.result=demoAi()
-   ?await agentFetch("/api/demo/analyze",{method:"POST",body:{snapshot:demoSnapshot(AN.turma),...filters}})
-   :await agentFetch("/api/agent/analyze",{method:"POST",body:{class_id:rid("turmas",AN.turma),...filters}});
+   ?await agentFetch("/api/demo/analyze",{method:"POST",body:{snapshot:demoSnapshot(AN.turma),...filters},onEvent})
+   :await agentFetch("/api/agent/analyze",{method:"POST",body:{class_id:rid("turmas",AN.turma),...filters},onEvent});
   // No modo demonstração o histórico fica neste navegador.
   if(demoAi()&&AN.result.status==="ok"){const x=AN.result.analysis;
    (DB.analisesIA??=[]).push({id:x.id,turmaId:AN.turma,created_at:x.created_at,content:AN.conteudo||null,summary:x.summary,attention_points:x.attention_points,recommendations:x.recommendations,students:AN.result.students});
    Repo.write(DB)}
   AN.history=null}
  catch(e){AN.error=e}
- finally{AN.busy=false;if(view==="analise")render()}}
+ finally{AN.busy=false;thinkEnd("an");if(view==="analise")render()}}
 async function anHist(){
  if(demoAi()){AN.history={analyses:(DB.analisesIA||[]).filter(a=>a.turmaId===AN.turma).slice().reverse(),
   activities:DB.atividades.filter(a=>a.turmaId===AN.turma&&a.origem==="ai").map(a=>({id:rid("atividades",a.id),title:a.titulo,status:a.status,created_at:a.criadoEm||""})).reverse()};return render()}
@@ -313,7 +344,7 @@ function genFormHtml(){const t=GEN.turmaId,avs=DB.avaliacoes.filter(a=>a.turmaId
  if(GEN.conteudo===undefined)GEN.conteudo=conts[0]||"";
  const comp=GEN.componente||avs.find(a=>a.conteudo===GEN.conteudo)?.componente||"";
  const radio=(name,val,cur,title,desc,extra="")=>`<label class="choice"><input type="radio" name="${name}" value="${val}" ${val===cur?"checked":""} ${extra}><span><b>${title}</b>${desc?`<br><span class="muted">${desc}</span>`:""}</span></label>`;
- return`<h2>Gerar atividade com IA</h2><p class="muted" style="margin-top:0">A IA usa os resultados desta turma para personalizar a atividade. Ela fica salva como rascunho até você revisar e aprovar.</p>
+ return`<h2>Gerar atividade com IA</h2><div id="g_think"></div><div id="g_form"><p class="muted" style="margin-top:0">A IA usa os resultados desta turma para personalizar a atividade. Ela fica salva como rascunho até você revisar e aprovar.</p>
  <div class="fg">
  <div><label for="g_t">Turma *</label><select id="g_t" data-gen="turma">${turmaO().map(([a,b])=>`<option value="${esc(a)}" ${a===t?"selected":""}>${esc(b)}</option>`).join("")}</select></div>
  <div><label for="g_c">Conteúdo *</label><input id="g_c" list="g_cl" value="${esc(GEN.conteudo)}" autocomplete="off"><datalist id="g_cl">${conts.map(c=>`<option value="${esc(c)}">`).join("")}</datalist><span class="err" id="e_g_c"></span></div>
@@ -329,7 +360,7 @@ function genFormHtml(){const t=GEN.turmaId,avs=DB.avaliacoes.filter(a=>a.turmaId
  <fieldset class="full"><legend>Nível de complexidade *</legend>
   ${Object.entries(LEVEL).map(([k,[l,d]])=>radio("g_niv",k,GEN.nivel,l+(GEN.sugerido===k?' <span class="chip">sugerido pelos dados</span>':""),d)).join("")}
   <p class="muted" style="font-size:12px;margin:4px 0 0">O nível vale só para esta atividade; não é um rótulo do estudante.</p></fieldset>
- <div class="full"><label for="g_n">Observações para a IA (opcional)</label><textarea id="g_n" maxlength="1000" placeholder="Ex.: usar situações de compras na feira.">${esc(GEN.notas||"")}</textarea></div></div>
+ <div class="full"><label for="g_n">Observações para a IA (opcional)</label><textarea id="g_n" maxlength="1000" placeholder="Ex.: usar situações de compras na feira.">${esc(GEN.notas||"")}</textarea></div></div></div>
  <p class="err" id="g_err" style="font-size:14px"></p><p class="muted" id="g_busy" role="status" style="font-size:13px"></p>
  <p style="text-align:right;margin:16px 0 0"><button class="btn s" data-act="close" id="g_cancel">Cancelar</button> <button class="btn" data-act="aiGenRun" id="g_run">Gerar atividade</button></p>`}
 
@@ -340,20 +371,24 @@ async function aiGenRun(){if(GEN.busy)return;readGen();
  if(GEN.publico==="estudantes_selecionados"&&!GEN.alunos.length)er.g_al="Selecione ao menos um estudante.";
  ["g_c","g_q","g_al"].forEach(k=>{if($("e_"+k))$("e_"+k).textContent=er[k]||""});
  if(Object.keys(er).length)return;
+ // Enquanto a IA trabalha, o formulário dá lugar ao painel de progresso; num erro, ele volta como estava.
  const lock=on=>{GEN.busy=on;if($("g_run")){$("g_run").disabled=on;$("g_run").textContent=on?"Gerando…":"Tentar novamente"}if($("g_cancel"))$("g_cancel").disabled=on;
-  if($("g_busy"))$("g_busy").textContent=on?"A IA está consultando os resultados, planejando, gerando e validando a atividade. Pode levar alguns minutos; não feche esta janela.":""};
+  if($("g_form"))$("g_form").hidden=on;
+  if($("g_think"))$("g_think").innerHTML=on?thinkHtml("gen","Consultar, planejar, escrever e revisar costuma levar alguns minutos. Não feche esta janela."):""};
+ const onEvent=thinkStart("gen");
  lock(true);$("g_err").textContent="";
  try{const body={class_id:rid("turmas",GEN.turmaId),content:GEN.conteudo,target_group:GEN.publico,complexity:GEN.nivel,question_count:q,activity_type:GEN.tipo,
    ...(GEN.componente?{subject:GEN.componente}:{}),...(GEN.habilidade?{skill:GEN.habilidade}:{}),...(GEN.objetivo?{objective:GEN.objetivo}:{}),...(GEN.notas?{teacher_notes:GEN.notas}:{}),
    ...(GEN.publico==="estudantes_selecionados"?{student_ids:GEN.alunos.map(id=>rid("alunos",id))}:{}),
    ...(GEN.analysisId?{analysis_id:GEN.analysisId}:{}),...(GEN.regenerateOf?{regenerate_of:GEN.regenerateOf}:{})};
   const out=demoAi()
-   ?await agentFetch("/api/demo/activities",{method:"POST",body:{...body,snapshot:demoSnapshot(GEN.turmaId)}})
-   :await agentFetch("/api/agent/activities",{method:"POST",body});
+   ?await agentFetch("/api/demo/activities",{method:"POST",body:{...body,snapshot:demoSnapshot(GEN.turmaId)},onEvent})
+   :await agentFetch("/api/agent/activities",{method:"POST",body,onEvent});
+  thinkEnd("gen");
   const rec=upsertLocalActivity(out.activity);
   AI_LAST[rec.id]={operations:out.operations,validation:out.validation};
   GEN.busy=false;closeM();render();aiPreview(rec.id);toast("Rascunho gerado. Revise antes de aprovar.")}
- catch(e){lock(false);
+ catch(e){thinkEnd("gen");lock(false);
   if($("g_err")){const iss=e.details?.issues||[];$("g_err").innerHTML=esc(e.message)+(iss.length?`<br>${iss.map(i=>esc(typeof i==="string"?i:i.message)).join("<br>")}`:"")+(e.retryable===false?"":"<br>Nada foi salvo; você pode tentar novamente.")}
   else toast(e.message)}}
 

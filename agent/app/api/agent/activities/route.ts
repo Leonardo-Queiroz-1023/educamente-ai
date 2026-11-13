@@ -3,7 +3,7 @@ import { authenticate, requireOwnedClass } from "../../../../src/lib/auth";
 import { createProvider } from "../../../../src/lib/ai";
 import { runGeneration } from "../../../../src/lib/agent/tasks";
 import { ACTIVITY_TYPES, COMPLEXITIES, TARGET_GROUPS } from "../../../../src/lib/domain/activity";
-import { json, preflight, readJson, route } from "../../../../src/lib/http";
+import { preflight, readJson, respond, route } from "../../../../src/lib/http";
 import { enforceRateLimit } from "../../../../src/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -31,8 +31,8 @@ export const POST = route(async (req: Request) => {
   const auth = await authenticate(req);
   const classInfo = await requireOwnedClass(auth, body.class_id);
   enforceRateLimit(auth.userId);
-  const outcome = await runGeneration(
-    { repo: auth.repo, teacherId: auth.teacherId, classInfo, provider: createProvider },
+  return respond(req, 201, (emit) => runGeneration(
+    { repo: auth.repo, teacherId: auth.teacherId, classInfo, provider: createProvider, emit },
     {
       kind: "generation",
       classId: body.class_id,
@@ -49,8 +49,7 @@ export const POST = route(async (req: Request) => {
       analysisId: body.analysis_id,
       regenerateOf: body.regenerate_of,
     },
-  );
-  return json(req, outcome, 201);
+  ));
 });
 
 export const OPTIONS = (req: Request) => preflight(req);

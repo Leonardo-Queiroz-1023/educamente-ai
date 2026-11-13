@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createProvider } from "../../../../src/lib/ai";
 import { runAnalysis } from "../../../../src/lib/agent/tasks";
 import { DEMO_TEACHER_ID, SnapshotSchema, requireDemo, snapshotRepository } from "../../../../src/lib/demo";
-import { json, preflight, readJson, route } from "../../../../src/lib/http";
+import { preflight, readJson, respond, route } from "../../../../src/lib/http";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -22,19 +22,21 @@ export const POST = route(async (req: Request) => {
   requireDemo(req);
   const body = await readJson(req, Body);
   const { repo, classInfo } = snapshotRepository(body.snapshot);
-  const outcome = await runAnalysis(
-    { repo, teacherId: DEMO_TEACHER_ID, classInfo, provider: createProvider },
-    {
-      kind: "analysis",
-      classId: classInfo.id,
-      assessmentId: body.assessment_id,
-      subject: body.subject || undefined,
-      content: body.content || undefined,
-      startDate: body.start_date,
-      endDate: body.end_date,
-    },
-  );
-  return json(req, { ...outcome, demo: true });
+  return respond(req, 200, async (emit) => {
+    const outcome = await runAnalysis(
+      { repo, teacherId: DEMO_TEACHER_ID, classInfo, provider: createProvider, emit },
+      {
+        kind: "analysis",
+        classId: classInfo.id,
+        assessmentId: body.assessment_id,
+        subject: body.subject || undefined,
+        content: body.content || undefined,
+        startDate: body.start_date,
+        endDate: body.end_date,
+      },
+    );
+    return { ...outcome, demo: true };
+  });
 });
 
 export const OPTIONS = (req: Request) => preflight(req);

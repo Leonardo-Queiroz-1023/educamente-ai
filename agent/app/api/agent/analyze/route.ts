@@ -2,7 +2,7 @@ import { z } from "zod";
 import { authenticate, requireOwnedClass } from "../../../../src/lib/auth";
 import { createProvider } from "../../../../src/lib/ai";
 import { runAnalysis } from "../../../../src/lib/agent/tasks";
-import { json, preflight, readJson, route } from "../../../../src/lib/http";
+import { preflight, readJson, respond, route } from "../../../../src/lib/http";
 import { enforceRateLimit } from "../../../../src/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -24,19 +24,20 @@ export const POST = route(async (req: Request) => {
   const auth = await authenticate(req);
   const classInfo = await requireOwnedClass(auth, body.class_id);
   enforceRateLimit(auth.userId);
-  const outcome = await runAnalysis(
-    { repo: auth.repo, teacherId: auth.teacherId, classInfo, provider: createProvider },
-    {
-      kind: "analysis",
-      classId: body.class_id,
-      assessmentId: body.assessment_id,
-      subject: body.subject || undefined,
-      content: body.content || undefined,
-      startDate: body.start_date,
-      endDate: body.end_date,
-    },
+  return respond(req, 200, (emit) =>
+    runAnalysis(
+      { repo: auth.repo, teacherId: auth.teacherId, classInfo, provider: createProvider, emit },
+      {
+        kind: "analysis",
+        classId: body.class_id,
+        assessmentId: body.assessment_id,
+        subject: body.subject || undefined,
+        content: body.content || undefined,
+        startDate: body.start_date,
+        endDate: body.end_date,
+      },
+    ),
   );
-  return json(req, outcome);
 });
 
 export const OPTIONS = (req: Request) => preflight(req);
