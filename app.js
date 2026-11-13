@@ -193,9 +193,21 @@ const statusChip=s=>`<span class="chip ${s==="Concluída"?"ok":s==="Em andamento
 
 /* Modo demonstração (MVP): o serviço de IA pode aceitar uso sem login (DEMO_MODE=true no agent).
    Nesse caso, sem conta conectada, a IA trabalha sobre uma cópia dos dados deste navegador. */
-let AI_DEMO=false;
+let AI_DEMO=false,AI_STATUS="checking";/* checking | demo (IA sem login) | off (agente exige login) | down (agente não respondeu) */
 const aiOn=()=>cloudOn()||AI_DEMO,demoAi=()=>!cloudOn()&&AI_DEMO;
-fetch(AGENT_URL+"/api/health").then(r=>r.json()).then(j=>{const was=AI_DEMO;AI_DEMO=!!j.demo_mode;if(AI_DEMO!==was)render()}).catch(()=>{});
+/* Confere o agente de novo sempre que for preciso: ele pode ter subido depois que a página abriu. */
+async function checkAi(){try{const r=await fetch(AGENT_URL+"/api/health",{cache:"no-store"});const j=await r.json();AI_STATUS=j.demo_mode?"demo":"off"}catch{AI_STATUS="down"}
+ const was=AI_DEMO;AI_DEMO=AI_STATUS==="demo";if(AI_DEMO!==was)render();return AI_STATUS}
+checkAi();
+/* Sem login e sem IA: explica o motivo certo (agente fora do ar ou modo demonstração desligado). */
+const aiOffText=()=>AI_STATUS==="down"
+ ?`<p>O serviço de IA não respondeu em <b>${esc(AGENT_URL)}</b>, então a IA sem login não está disponível agora.</p><p class="muted">Para usar sem conta: rode <code>npm run dev</code> na pasta <code>agent</code>, ou coloque em <code>agentUrl</code> (arquivo <code>supabase-config.js</code>) o endereço do agente publicado.</p>`
+ :`<p>O serviço de IA está no ar, mas o uso sem login está desligado nele (<code>DEMO_MODE=false</code>). Ligue o modo demonstração no agente ou use o botão <b>Entrar</b> no topo para acessar sua conta.</p>`;
+const aiOffNote=()=>AI_STATUS==="down"
+ ?`<p class="note">O serviço de IA não respondeu em <b>${esc(AGENT_URL)}</b>. Para usar a IA sem conta, rode <code>npm run dev</code> na pasta <code>agent</code> ou configure <code>agentUrl</code> com o endereço do agente publicado.</p><p style="margin:-4px 0 16px"><button class="btn s" data-act="aiRecheck">Verificar de novo</button></p>`
+ :AI_STATUS==="checking"?`<p class="note">Verificando o serviço de IA…</p>`
+ :`<p class="note">O uso da IA sem login está desligado no agente. Use o botão <b>Entrar</b> no topo para acessar sua conta.</p>`;
+async function aiRecheck(){const st=await checkAi();render();toast(st==="demo"?"IA disponível sem login.":st==="down"?`O serviço de IA não respondeu em ${AGENT_URL}.`:"O agente respondeu, mas o uso sem login está desligado.")}
 
 /* Cópia da turma enviada no modo demonstração: ids, notas e conteúdos. Nomes de alunos e observações não saem do navegador. */
 function demoSnapshot(turmaId){const t=Svc.get("turmas",turmaId),avs=DB.avaliacoes.filter(a=>a.turmaId===turmaId),avIds=new Set(avs.map(a=>a.id));
@@ -222,7 +234,7 @@ async function agentFetch(path,opts={}){
   await sync?.flush();
   if(sync?.state?.dirty)throw new Error("Há alterações que ainda não chegaram à nuvem. Verifique a conexão e tente de novo.");
   headers.Authorization="Bearer "+session.access_token;
- }else if(!AI_DEMO)throw new Error("Entre com sua conta para usar a IA.");
+ }else if(!AI_DEMO&&(await checkAi())!=="demo")throw new Error(AI_STATUS==="down"?`O serviço de IA não respondeu em ${AGENT_URL}. Rode npm run dev na pasta agent ou configure agentUrl com o endereço do agente publicado.`:"O uso da IA sem login está desligado no agente. Entre com sua conta para usar a IA.");
  // Com onEvent, o agente transmite o progresso real (NDJSON) enquanto trabalha.
  if(opts.onEvent)headers.Accept="application/x-ndjson";
  let r;
@@ -274,7 +286,7 @@ function anView(){
  if(!DB.turmas.length)return head+`<div class="card empty">Cadastre uma turma, os alunos e uma avaliação com resultados para analisar.</div>`;
  if(!Svc.get("turmas",AN.turma))AN.turma=DB.turmas[0].id;
  const avs=DB.avaliacoes.filter(a=>a.turmaId===AN.turma),conts=[...new Set(avs.map(a=>a.conteudo).filter(Boolean))];
- return head+(cloudOn()?"":AI_DEMO?`<p class="note"><b>Modo demonstração:</b> a IA usa os dados salvos neste navegador, sem login. Os nomes dos alunos não são enviados, e os resultados ficam só aqui.</p>`:`<p class="note">A IA usa os dados da sua conta na nuvem. Use o botão <b>Entrar</b> no topo para acessar sua conta.</p>`)+
+ return head+(cloudOn()?"":AI_DEMO?`<p class="note"><b>Modo demonstração:</b> a IA usa os dados salvos neste navegador, sem login. Os nomes dos alunos não são enviados, e os resultados ficam só aqui.</p>`:aiOffNote())+
  `<div class="card"><div class="flt">
   <div><label for="anT">Turma</label><select id="anT" data-an="turma">${turmaO().map(([a,b])=>`<option value="${esc(a)}" ${a===AN.turma?"selected":""}>${esc(b)}</option>`).join("")}</select></div>
   <div><label for="anA">Avaliação</label><select id="anA" data-an="avaliacao"><option value="">Todas</option>${avs.map(a=>`<option value="${esc(a.id)}" ${a.id===AN.avaliacao?"selected":""}>${esc(a.nome)} (${dt(a.data)})</option>`).join("")}</select></div>
@@ -331,8 +343,9 @@ async function anHist(){
 
 /* ----- geração de atividade com IA ----- */
 const GEN={},AI_LAST={};
-function aiGenM(pre){
- if(!aiOn())return openM(`<h2>Gerar atividade com IA</h2><p>A IA consulta os resultados salvos na sua conta. Use o botão <b>Entrar</b> no topo para acessar sua conta e tente de novo.</p><p style="text-align:right;margin:16px 0 0"><button class="btn" data-act="close">Entendi</button></p>`);
+async function aiGenM(pre){
+ if(!aiOn()&&!cloudOn())await checkAi();
+ if(!aiOn())return openM(`<h2>Gerar atividade com IA</h2>${aiOffText()}<p style="text-align:right;margin:16px 0 0"><button class="btn" data-act="close">Entendi</button></p>`);
  if(!DB.turmas.length)return openM(`<h2>Cadastre uma turma primeiro</h2><p class="muted">A atividade é personalizada a partir dos resultados de uma turma.</p><button class="btn" data-act="close">Entendi</button>`);
  for(const k of Object.keys(GEN))delete GEN[k];
  Object.assign(GEN,{turmaId:Svc.get("turmas",AN.turma)?AN.turma:DB.turmas[0].id,publico:"turma",nivel:"consolidacao",qtd:5,tipo:"Exercícios",alunos:[]},pre||{});
@@ -352,7 +365,7 @@ function genFormHtml(){const t=GEN.turmaId,avs=DB.avaliacoes.filter(a=>a.turmaId
  <div><label for="g_comp">Componente curricular</label><select id="g_comp"><option value="">Não informado</option>${COMPS.map(c=>`<option ${c===comp?"selected":""}>${c}</option>`).join("")}</select></div>
  <div><label for="g_tipo">Tipo de atividade *</label><select id="g_tipo">${TIPOS.map(x=>`<option ${x===GEN.tipo?"selected":""}>${x}</option>`).join("")}</select></div>
  <div><label for="g_q">Quantidade de questões *</label><input id="g_q" type="number" min="1" max="15" step="1" value="${esc(GEN.qtd)}"><span class="err" id="e_g_q"></span></div>
- <div><label for="g_h">Habilidade (opcional)</label><input id="g_h" value="${esc(GEN.habilidade||"")}" placeholder="Ex.: EF05MA08"></div>
+ <div><label for="g_h">Habilidade (opcional)</label><input id="g_h" value="${esc(GEN.habilidade||"")}" placeholder="Ex.: EF06MA07"></div>
  <div class="full"><label for="g_o">Objetivo pedagógico (opcional)</label><textarea id="g_o" placeholder="Em branco, a IA propõe um objetivo com base nos resultados.">${esc(GEN.objetivo||"")}</textarea></div>
  <fieldset class="full"><legend>Público-alvo *</legend>
   ${Object.entries(TARGET).map(([k,l])=>radio("g_pub",k,GEN.publico,l,"",'data-gen="publico"')).join("")}
@@ -514,7 +527,7 @@ const ACT={
  aiDownload:id=>{const d=aiDoc(id,"completo");if(!d)return toast("Atividade não encontrada.");PR.download(d);toast("Arquivo baixado: folha do aluno e, na página seguinte, o gabarito.")},
  anPrint:()=>{const d=anDoc();d?PR.print(d):toast("Faça uma análise antes de imprimir.")},
  anDownload:()=>{const d=anDoc();if(!d)return toast("Faça uma análise antes de baixar.");PR.download(d,"relatorio-analise-"+nm("turmas",AN.turma));toast("Relatório baixado.")},
- anRun,anHist,aiGenRun,aiHealth,aiEdit:aiEditM,aiSave,aiApprove,aiRegen,aiBack:id=>aiPreview(id),
+ anRun,anHist,aiGenRun,aiHealth,aiRecheck,aiEdit:aiEditM,aiSave,aiApprove,aiRegen,aiBack:id=>aiPreview(id),
  aiGen:src=>src==="analysis"?aiGenFromAnalysis():aiGenM(),
  aiOpen:uuid=>aiPreview(lid("atividades",uuid)),
  del:(m,id)=>conf(`Excluir este registro? ${m==="turmas"?"Alunos, avaliações, atividades e planejamentos da turma também serão excluídos.":m==="alunos"||m==="avaliacoes"?"Os resultados vinculados também serão excluídos.":""}`,`del2:${m}:${id}`),
