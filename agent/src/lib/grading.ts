@@ -57,7 +57,7 @@ export interface GradeResult {
   model: string;
 }
 
-const SYSTEM = `Você é um professor experiente corrigindo questões dissertativas do ensino fundamental, em português do Brasil.
+const SYSTEM = `Você é um professor experiente corrigindo questões dissertativas do ensino fundamental II (6º ao 9º ano) e do ensino médio, em português do Brasil.
 Para cada resposta: atribua uma pontuação entre 0 e o valor da questão (meio ponto é permitido), diga se está correta
 (atinge o essencial da resposta esperada), escreva um comentário curto e construtivo dirigido ao estudante, e liste
 até 3 erros como rótulos curtos e reutilizáveis (ex.: "Erro de sinal ao mudar de lado", "Não citou a glicose"),

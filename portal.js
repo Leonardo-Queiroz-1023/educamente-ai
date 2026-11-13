@@ -221,7 +221,7 @@
   function vPlano() {
     const opts = ROLE === 'professor'
       ? turmasDoProfessor(me.id).flatMap((t) => materiasDoProfessor(me.id, t.id).map((m) => ({ t, m })))
-      : db.materias.map((m) => ({ t: turma(alunoVer().turmaId), m }));
+      : C.materiasDaTurma(db, alunoVer().turmaId).map((m) => ({ t: turma(alunoVer().turmaId), m }));
     const sel = route().arg || `${opts[0].t.id}|${opts[0].m.id}`;
     const [tid, mid] = sel.split('|');
     const plano = db.planos.find((p) => p.turmaId === tid && p.materiaId === mid);
@@ -268,11 +268,11 @@
     return `<div class="top"><div><h1>Turmas</h1><p class="sub">Crie turmas e defina o professor de cada componente</p></div></div>
       <form class="card" id="fTurma"><h2>Nova turma</h2><div class="fg">
         <div><label for="tuNome">Nome</label><input id="tuNome" required maxlength="40" placeholder="Ex.: 7º Ano C"></div>
-        <div><label for="tuSerie">Série</label><select id="tuSerie">${['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '6º ano', '7º ano', '8º ano', '9º ano'].map((s) => `<option>${s}</option>`).join('')}</select></div>
+        <div><label for="tuSerie">Série</label><select id="tuSerie"><optgroup label="Ensino fundamental II">${C.SERIES.EF.map((s) => `<option>${s}</option>`).join('')}</optgroup><optgroup label="Ensino médio">${C.SERIES.EM.map((s) => `<option>${s}</option>`).join('')}</optgroup></select></div>
         <div><label for="tuTurno">Turno</label><select id="tuTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
       </div><div class="row-act"><button class="btn" type="submit">Criar turma</button></div></form>
       <section class="card"><div class="tw"><table><thead><tr><th>Turma</th><th>Série</th><th>Turno</th><th>Alunos</th><th>Professores</th><th></th></tr></thead><tbody>
-      ${db.turmas.map((t) => `<tr><td><b>${esc(t.nome)}</b></td><td>${esc(t.serie)}</td><td>${esc(t.turno)}</td><td>${db.alunos.filter((a) => a.turmaId === t.id).length}</td><td>${t.professores.filter((v) => v.professorId).length} de ${db.materias.length} componentes com professor</td><td><button type="button" class="ib" data-go="turma:${t.id}">Professores</button></td></tr>`).join('')}
+      ${db.turmas.map((t) => `<tr><td><b>${esc(t.nome)}</b></td><td>${esc(t.serie)}</td><td>${esc(t.turno)}</td><td>${db.alunos.filter((a) => a.turmaId === t.id).length}</td><td>${C.materiasDaTurma(db, t.id).filter((m) => t.professores.some((v) => v.materiaId === m.id && v.professorId)).length} de ${C.materiasDaTurma(db, t.id).length} componentes com professor</td><td><button type="button" class="ib" data-go="turma:${t.id}">Professores</button></td></tr>`).join('')}
       </tbody></table></div></section>`;
   }
 
@@ -282,7 +282,7 @@
     return `<div class="top"><div><h1>${esc(t.nome)}</h1><p class="sub">${esc(t.serie)} · ${esc(t.turno)} · ${db.alunos.filter((a) => a.turmaId === t.id).length} alunos</p></div><button type="button" class="btn s" data-go="turmas">Voltar</button></div>
       <section class="card"><h2>Professores da turma</h2><p class="hint">Escolha quem leciona cada componente. A mudança vale na hora para a chamada e as atividades.</p>
       <div class="tw"><table class="compact"><thead><tr><th>Componente</th><th>Professor</th></tr></thead><tbody>
-      ${db.materias.map((m) => { const v = t.professores.find((x) => x.materiaId === m.id); return `<tr><td>${esc(m.nome)}</td><td><select data-vinc="${t.id}|${m.id}" aria-label="Professor de ${esc(m.nome)}"><option value="">Sem professor</option>${db.professores.map((p) => `<option value="${p.id}" ${v?.professorId === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select></td></tr>`; }).join('')}
+      ${C.materiasDaTurma(db, t.id).map((m) => { const v = t.professores.find((x) => x.materiaId === m.id); return `<tr><td>${esc(m.nome)}</td><td><select data-vinc="${t.id}|${m.id}" aria-label="Professor de ${esc(m.nome)}"><option value="">Sem professor</option>${db.professores.map((p) => `<option value="${p.id}" ${v?.professorId === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select></td></tr>`; }).join('')}
       </tbody></table></div></section>
       <section class="card"><h2>Alunos</h2>${db.alunos.filter((a) => a.turmaId === t.id).map((a) => `<button type="button" class="ib" data-go="aluno:${a.id}">${esc(a.nome)}</button>`).join(' ') || empty('Nenhum aluno matriculado.')}</section>`;
   }
@@ -331,7 +331,7 @@
     const tid = route().arg || db.turmas[0]?.id;
     const t = turma(tid);
     const alunos = db.alunos.filter((a) => a.turmaId === tid);
-    const porMateria = db.materias.map((m) => ({ l: m.nome, v: avg(alunos.map((a) => C.gradeSummary(db, a.id).find((l) => l.materiaId === m.id).media).filter((n) => n != null)) }));
+    const porMateria = C.materiasDaTurma(db, tid).map((m) => ({ l: m.nome, v: avg(alunos.map((a) => C.gradeSummary(db, a.id).find((l) => l.materiaId === m.id).media).filter((n) => n != null)) }));
     const linhas = alunos.map((a) => ({ a, m: mediaGeral(a.id), f: freqGeral(a.id), faltas: C.attendanceSummary(db, a.id).reduce((s, l) => s + l.F, 0), oc: db.ocorrencias.filter((o) => o.alunoId === a.id).length })).sort((x, y) => (x.m ?? 10) - (y.m ?? 10));
     return `<div class="top"><div><h1>Desempenho</h1><p class="sub">${esc(t?.nome || '')} · Médias, frequência e ocorrências</p></div>
       <div class="flt"><div><label for="selTurmaD">Turma</label><select id="selTurmaD">${db.turmas.map((x) => `<option value="${x.id}" ${x.id === tid ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></div></div></div>
@@ -680,9 +680,10 @@ A entrega fica registrada como enviada pelo responsável de ${me.nome}.` : '')))
     if (f.id === 'fTurma') {
       const nome = $('tuNome').value.trim();
       if (db.turmas.some((t) => t.nome.toLowerCase() === nome.toLowerCase())) { toast('Já existe uma turma com esse nome.'); return; }
-      const t = { id: uid('t'), nome, serie: $('tuSerie').value, turno: $('tuTurno').value, professores: db.materias.map((m) => ({ materiaId: m.id, professorId: null })) };
+      const t = { id: uid('t'), nome, serie: $('tuSerie').value, turno: $('tuTurno').value, professores: C.materiasDaSerie(db, $('tuSerie').value).map((m) => ({ materiaId: m.id, professorId: null })) };
       db.turmas.push(t);
-      db.materias.forEach((m) => db.planos.push({ id: uid('pl'), turmaId: t.id, materiaId: m.id, professorId: null, bimestres: (db.planos.find((p) => p.materiaId === m.id)?.bimestres || []).map((b) => ({ ...b })) }));
+      const mesmoNivel = (p) => C.nivelDaSerie(turma(p.turmaId)?.serie) === C.nivelDaSerie(t.serie);
+      C.materiasDaSerie(db, t.serie).forEach((m) => db.planos.push({ id: uid('pl'), turmaId: t.id, materiaId: m.id, professorId: null, bimestres: (db.planos.find((p) => p.materiaId === m.id && p.turmaId !== t.id && mesmoNivel(p))?.bimestres || []).map((b) => ({ ...b })) }));
       save(); go('turma:' + t.id); toast('Turma criada. Agora defina os professores.');
     }
     if (f.id === 'fAluno') {

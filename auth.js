@@ -44,7 +44,7 @@
     if (role === 'professor') return db.professores.map((p) => ({ label: p.nome, info: p.acesso, fill: { id: p.acesso }, panel: 'professorId' }));
     if (role === 'aluno') return db.alunos.slice(0, 4).map((a) => ({ label: a.nome, info: a.acesso, fill: { id: a.acesso }, panel: 'aluno' }));
     if (role === 'responsavel') {
-      // Primeiro um aluno até o 6º ano (o responsável envia atividades), depois os dos anos finais (só leitura).
+      // Primeiro alunos do 6º ano (o responsável envia atividades), depois os do 7º ano em diante e do médio (só leitura).
       const iniciais = db.alunos.filter((a) => window.EscolaCore.guardianCanSubmit(db, a.id)).slice(0, 2);
       const finais = db.alunos.filter((a) => !window.EscolaCore.guardianCanSubmit(db, a.id)).slice(0, 2);
       return [...iniciais, ...finais].map((a) => {

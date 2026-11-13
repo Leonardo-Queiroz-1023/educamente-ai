@@ -1,6 +1,7 @@
 import { getConfig, requireAi } from "../config";
 import { AnthropicProvider } from "./anthropic-provider";
 import { GeminiProvider } from "./gemini-provider";
+import { OpenRouterProvider } from "./openrouter-provider";
 import type { AiProvider } from "./provider";
 
 /** Cria o provedor configurado. Novo provedor: novo adaptador + um case aqui. */
@@ -11,6 +12,8 @@ export function createProvider(): AiProvider {
       return new AnthropicProvider(ai.apiKey, ai.model);
     case "gemini":
       return new GeminiProvider(ai.apiKey, ai.model);
+    case "openrouter":
+      return new OpenRouterProvider(ai.apiKey, ai.model);
   }
 }
 
